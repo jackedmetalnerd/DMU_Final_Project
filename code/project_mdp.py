@@ -1,0 +1,766 @@
+import numpy as np
+from collections import namedtuple
+from scipy.stats import binom
+from scipy.sparse import csr_matrix, diags
+from tqdm import tqdm
+from math import sqrt, log
+import random
+import time
+
+#################################################################################################################################################
+## Define final project MDP - helper functions
+# S:
+State = namedtuple('State',['W1','M1','R1','W2','M2','R2','terminal']) #define state format: workers, marines, resources for Players 1 & 2
+
+def valid_act(a,s): #check if an action is valid for a given state
+    if s.terminal:
+        return False #no actions from terminal state
+    elif a == 'P1_train_workers': 
+        return s.R1 > 0 and s.W1 < 10 #sufficient resources; not at worker cap
+    elif a == 'P1_train_marines': 
+        return s.R1 > 0 and s.M1 < 10 #sufficient resources; not at marine cap
+    elif a == 'P2_train_workers': 
+        return s.R2 > 0 and s.W2 < 10 #sufficient resources; not at worker cap
+    elif a == 'P2_train_marines': 
+        return s.R2 > 0 and s.M2 < 10 #sufficient resources; not at marine cap
+    else: return True #attacks allowed
+
+# T:
+def combat_prob(M1,M2): #returns probability distribution for combat losses (dict)
+    if M1 == 0 and M2 == 0:
+        return {(0,0):1.0} #if no marines, no change
+    
+    outcomes = {}
+    for P1_losses in range(M1+1): #all possible losses for Player 1
+        for P2_losses in range(M2+1): #all possible losses for Player 2
+            p1 = binom.pmf(P1_losses, M2, 0.5)  #50% chance of a loss in each encounter
+            p2 = binom.pmf(P2_losses, M1, 0.5)
+            sp = (max(M1 - P1_losses, 0), max(M2 - P2_losses,0)) #can kill down to zero marines
+            outcomes[sp] = outcomes.get(sp, 0) + p1 * p2
+    return outcomes #return outcome dict
+            
+def train_prob(s, a, sp): #probability of a given training transition
+    if s.terminal == 1: #in a terminal state
+        return 1.0 if s == sp else 0.0 #terminal state - no change
+    
+    elif a == 'P1_train_workers': #attempting worker training
+        if s.R1 < 1 or s.W1 > 9: #no resources or at worker cap - can't train
+            return 1.0 if s == sp else 0.0 #no effect
+        
+        if sp == State(s.W1+s.R1,s.M1,0,s.W2,s.M2,s.R2): #gain workers, use resources
+            return 0.9 #90% chance of successful training
+        elif sp == State(s.W1,s.M1,0,s.W2,s.M2,s.R2): #only use resources
+            return 0.1 #10% chance of unsuccessful training
+        else: return 0.0
+
+    elif a == 'P1_train_marines': #attempting worker training
+        if s.R1 < 1 or s.M1 > 9: #no resources or at marine cap - can't train
+            return 1.0 if s == sp else 0.0 #no effect
+        
+        if sp == State(s.W1,s.M1+s.R1,0,s.W2,s.M2,s.R2): #gain marines, use resources
+            return 0.9 #90% chance of successful training
+        elif sp == State(s.W1,s.M1,0,s.W2,s.M2,s.R2): #only use resources
+            return 0.1 #10% chance of unsuccessful training
+        else: return 0.0
+
+    elif a == 'P2_train_workers': #attempting worker training
+        if s.R2 < 1 or s.W2 > 9: #no resources or at worker cap - can't train
+            return 1.0 if s == sp else 0.0 #no effect
+        
+        if sp == State(s.W1,s.M1,s.R1,s.W2+s.R2,s.M2,0): #gain worker, use resources
+            return 0.9 #90% chance of successful training
+            #return 1.0 #100% chance of successful training
+        elif sp == State(s.W1,s.M1,s.R1,s.W2,s.M2,0): #only use resources
+            return 0.1 #10% chance of unsuccessful training
+            #return 0.0 #0% chance of unsuccessful training
+        
+        else: return 0.0
+
+    elif a == 'P2_train_marines': #attempting worker training
+        if s.R2 < 1 or s.M2 > 9: #no resources or at marine cap - can't train
+            return 1.0 if s == sp else 0.0 #no effect
+        
+        if sp == State(s.W1,s.M1,s.R1,s.W2,s.M2+s.R2,0): #gain marine, use resources
+            return 0.9 #90% chance of successful training
+            #return 1.0 #100% chance of successful training
+        elif sp == State(s.W1,s.M1,s.R1,s.W2,s.M2,0): #only use resources
+            return 0.1 #10% chance of unsuccessful training
+            #return 0.0 #0% chance of unsuccessful training
+        
+        else: return 0.0
+
+    else: 
+        return 0.0 
+    
+def build_transition_matrices(S,A,combat_prob,train_prob): #build out transitions for all actions
+    
+    #Pre-comps to save time
+    S_index = {s: i for i, s in enumerate(S)}  #state lookup index
+
+    combat_lookup = {} #combat outcome probability lookup
+    for m1 in range(11):
+        for m2 in range(11):
+            combat_lookup[(m1, m2)] = combat_prob(m1, m2)
+
+    T = {} #empty dict
+
+    for a in A: #loop across action space
+        rows, cols, vals = [], [], []
+
+        for s_idx, s in enumerate(tqdm(S, desc="Building transition matrices...")): #all possible current states
+            if s.terminal == 1:  # terminal states
+                rows.append(s_idx)
+                cols.append(s_idx)
+                vals.append(1.0)
+                continue #no outgoing transitions from terminal state
+
+            elif a == 'P1_attack' or a == 'P2_attack': #entering combat
+                for (new_M1,new_M2), c_prob in combat_lookup[(s.M1,s.M2)].items(): #possible next states
+                    terminal = 1 if (new_M1 == 0 or new_M2 == 0) else 0 #check if terminal
+                    sp = State(s.W1, new_M1, s.R1, s.W2, new_M2, s.R2, terminal) #full possible next states
+                    sp_idx = S_index[sp]
+                    rows.append(s_idx)
+                    cols.append(sp_idx)
+                    vals.append(c_prob) #store probability data - zeros if not possible
+
+            else: #any training action
+                inval = False #check for constraints, caps
+                if a == 'P1_train_workers' and (s.R1 < 1 or s.W1 > 9): inval = True #sufficient resources; not at worker cap (analogous below)
+                elif a == 'P1_train_marines' and (s.R1 < 1 or s.M1 > 9): inval = True
+                elif a == 'P2_train_workers' and (s.R2 < 1 or s.W2 > 9): inval = True
+                elif a == 'P2_train_marines' and (s.R2 < 1 or s.M2 > 9): inval = True
+
+                if not inval: #training possible
+                    dW1 = min(s.W1 + s.R1, 10) - s.W1 if a == 'P1_train_workers' else 0
+                    dM1 = min(s.M1 + s.R1, 10) - s.M1 if a == 'P1_train_marines' else 0
+                    dR1 = -s.R1 if a in ('P1_train_workers', 'P1_train_marines') else 0
+                    dW2 = min(s.W2 + s.R2, 10) - s.W2 if a == 'P2_train_workers' else 0
+                    dM2 = min(s.M2 + s.R2, 10) - s.M2 if a == 'P2_train_marines' else 0
+                    dR2 = -s.R2 if a in ('P2_train_workers', 'P2_train_marines') else 0 #changes based on training actions taken
+
+                    sp_success = State(s.W1+dW1,s.M1+dM1,s.R1+dR1,s.W2+dW2,s.M2+dM2,s.R2+dR2,0) #next state if training succeeds
+                    sp_fail = State(s.W1,s.M1,s.R1+dR1,s.W2,s.M2,s.R2+dR2,0) # next state if training fails - STOCHASTIC P2 VERSION
+                    #sp_fail = State(s.W1,s.M1,s.R1+dR1,s.W2+dW2,s.M2+dM2,s.R2+dR2,0) #next state if training fails - DETERMINISTIC P2 VERSION
+
+                    rows.append(s_idx) #store success probabilities
+                    cols.append(S_index[sp_success])
+                    vals.append(0.9)
+
+                    rows.append(s_idx) #store failure probabilities
+                    cols.append(S_index[sp_fail])
+                    vals.append(0.1)
+                else: 
+                    rows.append(s_idx) #no effect; self loop
+                    cols.append(s_idx)
+                    vals.append(1.0)
+
+        T[a] = csr_matrix((vals, (rows, cols)), shape=(len(S), len(S))) #build into a sparse matrix
+    return T
+
+def total_transition(A,T,T_P2,T_res): #combine Player 2 actions and resource gains into transition matrix
+    T_combined = {}
+    for a in A:
+        T_combined[a] = T[a] @ T_P2 @ T_res #P1 act, P2 act, then resources gained
+    return T_combined
+
+#R: 
+def build_reward_vectors(S,A): #build out rewards for all state, action pairs (P1 perspective)  
+    R = np.zeros(len(S)) 
+    for idx,s in enumerate(tqdm(S, desc="Building reward vectors...")): #loop across all states
+        if s.terminal == 1: #all rewards are from terminal state
+            if s.M1 > 0 and s.M2 == 0: #P1 wins
+                R[idx] = 1.0
+            elif s.M1 == 0: #P1 loses
+                R[idx] = -1.0
+    return R
+
+# Opponent (P2) policies:
+def alternating_training(s): #player trains one worker, then one marine, etc
+    if s.W2 < s.M2: #fewer workers
+        return "P2_train_workers"
+    else: #parity or fewer marines
+        return "P2_train_marines"
+    
+def alternating_training_attack(s): #player trains one worker, then one marine; if both full, attack
+    if s.M2 == 10 and s.W2 == 10: #max of both
+        return "P2_attack"
+    elif s.W2 < s.M2: #fewer workers
+        return "P2_train_workers"
+    else: #parity or fewer marines
+        return "P2_train_marines"    
+
+# Apply P2 actions
+def P2_act(T,S,π2): #update transition matrices per P2 policy
+        rows, cols, vals = [], [], []
+
+        a2s = {a: [] for a in T.keys()} #shell for mapping actions to states based on P2 policy
+        for s_idx, s in enumerate(tqdm(S, desc="Determining P2 actions...")):
+            a2s[π2(s)].append(s_idx) #get next action; append state mapping
+        
+        for a, idxs in a2s.items():
+            idxs_arr = np.array(idxs)
+            sub = T[a][idxs_arr, :]  #extract only the rows where π2 chose this action
+        
+            cx = sub.tocoo()  #easier format
+            rows.extend(idxs_arr[cx.row].tolist())  #remap local row indices back to global
+            cols.extend(cx.col.tolist())
+            vals.extend(cx.data.tolist())
+        
+        T_P2 = csr_matrix((vals, (rows, cols)), shape=(len(S), len(S))) #build sparse matrix
+        T_P2.eliminate_zeros()
+        return T_P2
+
+# Apply resource collection
+def resource_gains(S): #apply before both players act
+    rows, cols, vals = [], [], []
+    S_index = {s: i for i, s in enumerate(S)}  #lookup index - saves comp time
+
+    for s_idx, s in enumerate(tqdm(S, desc="Applying resource gains...")):
+        if s.terminal == 1: #terminal states absorb
+            rows.append(s_idx)
+            cols.append(s_idx)
+            vals.append(1.0)
+            continue #no resource gain from terminal state
+        else:
+            new_R1 = min(s.R1 + s.W1, 10)
+            new_R2 = min(s.R2 + s.W2, 10)
+            sp = State(s.W1, s.M1, new_R1, s.W2, s.M2, new_R2, s.terminal)
+            sp_idx = S_index[sp]
+            rows.append(s_idx)
+            cols.append(sp_idx)
+            vals.append(1.0)
+    return csr_matrix((vals, (rows, cols)), shape=(len(S), len(S)))
+
+## MDP Build function
+def build_MDP(π_P2=alternating_training_attack,s_init=State(W1=1,M1=1,R1=1,W2=1,M2=1,R2=1,terminal=0)): #constructs a formatted 
+    S = [ #state space limits: 1-10 workers, marines, resources for each player, terminal or not
+        State(W1,M1,R1,W2,M2,R2,terminal) 
+            for W1 in range(0,11)
+            for M1 in range(0,11)
+            for R1 in range(0,11)
+            for W2 in range(0,11)
+            for M2 in range(0,11)
+            for R2 in range(0,11)
+            for terminal in range(0,2) #true or false
+    ] #full state space
+    
+    A = ['P1_train_workers','P1_train_marines','P1_attack','P2_train_workers','P2_train_marines','P2_attack'] #full action space
+    A_P1 = A[0:3] #player one actions
+
+    T_base = build_transition_matrices(S,A,combat_prob,train_prob)
+    T_P2 = P2_act(T_base,S,π_P2)
+    T_res = resource_gains(S)
+    T_combined = total_transition(A_P1,T_base,T_P2,T_res) #transition probabilities for P1 actions only
+
+    R = build_reward_vectors(S,A)
+
+    game_sim = {
+        'S': S,
+        'T': T_combined, #accounts for P2 actions and resource gains
+        'R': R,
+        'A': A_P1, #P1 actions only
+        'γ': 0.95,
+        's': s_init,
+        's_init': s_init, #for reinitialization, as necessary
+        'S_index': {s: i for i, s in enumerate(S)}, #pre-build state lookup index
+        'T_base': T_base, #saves pre-resource, P2 action transition matrix for use in future updates
+        'π_P2': π_P2 #ensures consistent P2 policy usage
+    }
+    
+    return game_sim
+
+def update_MDP_P2_policy(game_sim,π_P2_new): #replace P2 policy in an MDP simulation
+    S = game_sim['S']
+    T_base = game_sim['T_base']
+    A_P1 = game_sim['A']
+
+    T_P2 = P2_act(T_base,S,π_P2_new) 
+    T_res = resource_gains(S) #re-calc, but usually fast
+    T_combined = total_transition(A_P1,T_base,T_P2,T_res) #transition probabilities for P1 actions only
+
+    game_sim['T'] = T_combined #replace transition matrix
+    game_sim['π_P2'] = π_P2_new
+    
+    return game_sim
+#################################################################################################################################################
+
+#################################################################################################################################################
+## Conduct Value Iteration
+# Build value iteration function
+def value_iteration(game_sim, tol=1e-9): 
+    S = game_sim['S']
+    A = game_sim['A']
+    T = game_sim['T']
+    #T = {action: matrix.T for action, matrix in game_sim['T'].items()} #transpose matrices
+    R = game_sim['R']
+    γ = game_sim['γ']
+
+    term_vals = np.zeros(len(S))
+    term_mask = np.zeros(len(S), dtype=bool) #pre-build terminal state mask for computational efficiency
+    for idx, s in enumerate(S):
+        if s.terminal == 1:
+            term_mask[idx] = True
+            term_vals[idx] = 1.0 if (s.M1 > 0 and s.M2 == 0) else -1.0
+    
+    V = term_vals.copy() #initialize to zero except terminal states
+    iter = 0 #iteration count
+    start = time.time()
+
+    while True: #continuous; break when done        #np.linalg.norm(V - Vp, np.inf) > tol: #end when within tolerance
+        #Vp[:] = R[A[0]] + (γ * (T[A[0]] @ V)) #first Bellman backup vector
+        Vp = γ * (T[A[0]] @ V) #Bellman update with external reward handling
+        for a in A[1:]: #loop over all remaining actions
+            nV = γ * (T[a] @ V) #remaining Bellman backup vectors
+            Vp = np.maximum(Vp, nV) #find elementwise maxima for each action
+
+        Vp[term_mask] = term_vals[term_mask] #maintain terminal reward values
+
+        iter +=1
+        delta = np.max(np.abs(V - Vp))
+
+        V = Vp #update value
+
+        if iter % 10 == 0: #print progress every X iterations
+            elapse = time.time() - start 
+            minutes, seconds = divmod(elapse, 60)
+            time_str = f"{int(minutes):02d}:{seconds:05.2f}"
+            print(f"Iteration: {iter:04d} | Max Delta: {delta:.8f} | Elapsed Time: {time_str}")
+
+        if delta < tol: #break when within tolerance
+            break
+
+    return V
+
+def greedy(game_sim,V):  #returns a dict mapping states to greedy actions **HARD-CODED LIMITS**
+    S = game_sim['S']
+    A = game_sim['A']
+    T = game_sim['T']
+    R = game_sim['R']
+    γ = game_sim['γ']
+    
+    Q = np.zeros((len(A), len(V)))
+    for i, a in enumerate(A):
+        Q[i, :] = R + γ * (T[a] @ V) #find all Q values
+        
+    best_act_idx = np.argmax(Q, axis=0) #find best actions from each state
+    
+    π_star = {}
+    for s_idx, s in enumerate(tqdm(S, desc="Constructing optimal policy...")): #if no resources available, must attack
+        a = A[best_act_idx[s_idx]]
+        π_star[s] = a
+    return π_star
+#################################################################################################################################################
+
+#################################################################################################################################################
+## Simulate Gameplay
+
+def simulate_game(game_sim,π_P1,max_turns=50): #generic game simulator - policies formatted as functions
+    s = game_sim['s_init']
+    S = game_sim['S']
+    T = game_sim['T']
+    π_P2 = game_sim['π_P2']
+
+    print('Game simulation beginning...')
+    print(f"{'Turn':<5} | {'P1 Action':<17} | {'P2 Action':<17} | (W1,M1,R1 | W2,M2,R2 | terminal)")
+    print("-" * 80)
+    
+    for turn in range(1, max_turns + 1):
+        if s.terminal:
+            winner = "Winner: P1" if s.M1 > 0 else "Winner: P2" if s.M2 > 0 else "Draw"
+            print(f"END   | {'TERMINAL':<17} | {'TERMINAL':<17} | ({s.W1:02d},{s.M1:02d},{s.R1:02d} | {s.W2:02d},{s.M2:02d},{s.R2:02d} | {s.terminal})")
+            print(f"\nGame Over! {winner} in {turn-1} turns\n")
+            break
+
+        s_idx = S.index(s)
+        a1 = π_P1(s) #function call
+        a2 = π_P2(s) #function call
+        
+        print(f"{turn:<5} | {a1:<17} | {a2:<17} | ({s.W1:02d},{s.M1:02d},{s.R1:02d} | {s.W2:02d},{s.M2:02d},{s.R2:02d} | {s.terminal})")
+        
+        row = T[a1].getrow(s_idx) #accounts for both actions - Player 2 policy built into T
+        next_state_indices = row.indices
+        probabilities = row.data #find likelihood of next states
+        
+        probabilities = probabilities / np.sum(probabilities) #ensure normalized
+        
+        next_s_idx = np.random.choice(next_state_indices, p=probabilities) #sample from probabilities
+        s = S[next_s_idx] #update state
+
+    if s.terminal == 0: #didn't finish game - max turns reached without a win
+        print('\nGame Over! Draw - maximum turns reached\n')
+
+def simulate_game_VI(game_sim, π_P1, π_P2, s_init, max_turns=50): #single-game simulator function - value iteration formatting
+    s = s_init
+    S = game_sim['S']
+    T = game_sim['T']
+
+    print('P1 using greedy policy - Value Iteration')
+    print(f"{'Turn':<5} | {'P1 Action':<17} | {'P2 Action':<17} | (W1,M1,R1 | W2,M2,R2 | terminal)")
+    print("-" * 80)
+    
+    for turn in range(1, max_turns + 1):
+        if s.terminal:
+            winner = "Winner: P1" if s.M1 > 0 else "Winner: P2" if s.M2 > 0 else "Draw"
+            print(f"END   | {'TERMINAL':<17} | {'TERMINAL':<17} | ({s.W1:02d},{s.M1:02d},{s.R1:02d} | {s.W2:02d},{s.M2:02d},{s.R2:02d} | {s.terminal})")
+            print(f"\nGame Over! {winner} in {turn-1} turns\n")
+            break
+
+        s_idx = S.index(s)
+        a1 = π_P1[s] #dictionary call
+        a2 = π_P2(s) #function call
+        
+        print(f"{turn:<5} | {a1:<17} | {a2:<17} | ({s.W1:02d},{s.M1:02d},{s.R1:02d} | {s.W2:02d},{s.M2:02d},{s.R2:02d} | {s.terminal})")
+        
+        row = T[a1].getrow(s_idx) #accounts for both actions - Player 2 policy built into T
+        next_state_indices = row.indices
+        probabilities = row.data #find likelihood of next states
+        
+        probabilities = probabilities / np.sum(probabilities) #ensure normalized
+        
+        next_s_idx = np.random.choice(next_state_indices, p=probabilities) #sample from probabilities
+        s = S[next_s_idx] #update state
+
+    if s.terminal == 0: #didn't finish game - max turns reached without a win
+        print('\nGame Over! Draw - maximum turns reached\n')
+
+#################################################################################################################################################
+
+#################################################################################################################################################
+## Run MCTS on MDP
+
+def bonus(Nsa,Ns): #find bonus based on upper confidence bound
+    if Nsa == 0:
+        return float('inf') #avoid divide by zero
+    else:
+        return sqrt(log(Ns)/Nsa) #UCT bonus
+
+def rollout(game_sim,s_init,max_steps=50):
+    S = game_sim['S']
+    S_index = game_sim['S_index']
+    A = game_sim['A']
+    T = game_sim['T']
+    R = game_sim['R']
+    γ = game_sim['γ']
+
+    r_total = 0.0
+    t = 0
+    s = s_init
+    while t < max_steps: 
+        s_idx = S_index[s]
+        r_total += (γ**t)*R[s_idx] #update reward
+
+        if s.terminal == 1: #end on terminal state
+            break
+
+        valid_A = [a for a in A if valid_act(a,s)] #find only valid actions from this state
+        #a = π(s) #state format
+        a = random_act(valid_A) #action space format
+
+        row = T[a].getrow(s_idx) #accounts for both actions - Player 2 policy built into T
+        next_state_indices = row.indices
+        probabilities = row.data #find likelihood of next states
+        
+        probabilities = probabilities / np.sum(probabilities) #ensure normalized
+        
+        next_s_idx = random.choices(list(next_state_indices), weights=probabilities, k=1)[0] #sample from probabilities
+        s = S[next_s_idx] #update state
+
+        t += 1
+    return r_total
+
+def random_act(A): #returns a randomly chosen action from the action space
+    return random.choice(A)
+
+def exp_act(n,q,c,A,s): #choose an action for exploration based on UCT
+    valid_A = [a for a in A if valid_act(a,s)] #find only valid actions from this state
+
+    Ns = sum(n[(s,a)] for a in valid_A) #only checking valid actions
+    unvisited = [a for a in valid_A if n[(s,a)] == 0] #find unvisited valid actions for this state
+    if unvisited: 
+        return random.choice(unvisited) #return a random action instead of first action in the list
+    return max(valid_A, key=lambda a: q[(s,a)] + c*bonus(n[(s,a)],Ns))
+
+def MCTS_run(game_sim,π,n,q,t,c,d,s): #run an MCTS iteration and update tracking dictionaries
+    S = game_sim['S']
+    S_index = game_sim['S_index']
+    A = game_sim['A']
+    T = game_sim['T']
+    R = game_sim['R']
+    γ = game_sim['γ']
+
+    s_idx = S_index[s]
+
+    if d <= 0 or s.terminal == 1: #reached depth d or in a terminal state
+        return (R[s_idx], n, q, t) #no update - only rewards at terminal state
+    
+    elif (s,A[0]) not in n: #new state
+        valid_A = [a for a in A if valid_act(a,s)] #find only valid actions from this state
+        for a in valid_A:
+            n[(s,a)] = 0.0
+            q[(s,a)] = 0.0
+        return (rollout(game_sim,s,d), n, q, t) #rollout return
+    
+    a = π(n,q,c,A,s) #choose action for exploration - UCT format
+    #a = π(s) #choose action for exploration - simple format
+
+    row = T[a].getrow(s_idx) #accounts for both actions - Player 2 policy built into T
+    next_state_indices = row.indices
+    probabilities = row.data #find likelihood of next states
+        
+    probabilities = probabilities / np.sum(probabilities) #ensure normalized
+        
+    next_s_idx = random.choices(list(next_state_indices), weights=probabilities, k=1)[0] #sample from probabilities
+    s_it = S[next_s_idx] #update state
+    r = R[s_idx]
+
+    q_it = r + γ*MCTS_run(game_sim,π,n,q,t,c,d-1,s_it)[0] #recursively continue to specified depth
+
+    n[(s,a)] += 1 #update visit count
+    q[(s,a)] += (q_it-q[(s,a)])/n[(s,a)] #update q with scaled action value
+
+    if (s,a,s_it) not in t: #new transition
+        t[(s,a,s_it)] = 1
+    else:
+        t[(s,a,s_it)] += 1 #update transtion count
+
+    return q_it, n, q, t
+
+def MCTS(game_sim,π,n,q,t,c,d,s_init,num_runs=1000): #returns best action to take based on MCTS
+    A = game_sim['A']
+    for _ in range(num_runs):
+        _, n, q, t = MCTS_run(game_sim,π,n,q,t,c,d,s_init) #run MCTS simulation specified number of times
+    q_vals = np.array([q.get((s_init,a), 0.0) for a in A]) #extract all q values into an array
+    best = np.flatnonzero(q_vals == q_vals.max()) #find indices of all q values at maximum
+    return A[random.choice(list(best))],n,q,t
+
+def MCTS_policy(game_sim,s,n={},q={},t={}): #policy function wrapper for MCTS
+    # Hyperparameters
+    c = sqrt(2) 
+    d = 50
+
+    return MCTS(game_sim,exp_act,n,q,t,c,d,s,num_runs=10000) #uses UCT exploration policy
+
+def simulate_game_MCTS(game_sim,π_P2,s_init,max_turns=50): #single-game simulator function - P1 MCTS policy
+    s = s_init
+    S = game_sim['S']
+    S_index = game_sim['S_index']
+    T = game_sim['T']
+
+    # Containers for Q, N, and t dictionaries
+    n = {}
+    q = {}
+    t = {}
+
+    print('P1 using MCTS policy')
+    print(f"{'Turn':<5} | {'P1 Action':<17} | {'P2 Action':<17} | (W1,M1,R1 | W2,M2,R2 | terminal)")
+    print("-" * 80)
+    
+    for turn in range(1, max_turns + 1):
+        if s.terminal:
+            winner = "Winner: P1" if s.M1 > 0 else "Winner: P2" if s.M2 > 0 else "Draw"
+            print(f"END   | {'TERMINAL':<17} | {'TERMINAL':<17} | ({s.W1:02d},{s.M1:02d},{s.R1:02d} | {s.W2:02d},{s.M2:02d},{s.R2:02d} | {s.terminal})")
+            print(f"\nGame Over! {winner} in {turn-1} turns\n")
+            break
+
+        s_idx = S_index[s]
+        a1, n, q, t = MCTS_policy(game_sim,s,n,q,t) #runs MCTS to determine action from this state
+        a2 = π_P2(s) #function call
+        
+        print(f"{turn:<5} | {a1:<17} | {a2:<17} | ({s.W1:02d},{s.M1:02d},{s.R1:02d} | {s.W2:02d},{s.M2:02d},{s.R2:02d} | {s.terminal})")
+        
+        row = T[a1].getrow(s_idx) #accounts for both actions - Player 2 policy built into T
+        next_state_indices = row.indices
+        probabilities = row.data #find likelihood of next states
+        
+        probabilities = probabilities / np.sum(probabilities) #ensure normalized
+        
+        next_s_idx = np.random.choice(next_state_indices, p=probabilities) #sample from probabilities
+        s = S[next_s_idx] #update state
+
+    if s.terminal == 0: #didn't finish game - max turns reached without a win
+        print('\nGame Over! Draw - maximum turns reached\n')
+
+#################################################################################################################################################
+
+#################################################################################################################################################
+## Construct actor/observer/reset functions for reinforcement learning implementation
+
+def act(env, a): #from the current environment, take action a and return the reward
+    s = env['s']
+    S_index = env['S_index']
+    S = env['S']
+    T = env['T']
+    R = env['R']
+
+    s_idx = S_index[s]
+
+    if s.terminal:
+        return 0.0 #started from terminal state: no reward
+    else:
+        row = T[a].getrow(s_idx) #accounts for both actions - Player 2 policy built into T
+        next_state_indices = row.indices
+        probabilities = row.data #find likelihood of next states
+        
+        probabilities = probabilities / np.sum(probabilities) #ensure normalized
+        
+        sp_idx = np.random.choice(next_state_indices, p=probabilities) #sample from probabilities
+        sp = S[sp_idx] #next state
+
+        env['s'] = sp #update environment
+
+        return R[S_index[sp]] #return reward from action
+    
+def observe(env): #observe the current state (perfect observation - FOMDP)
+    return env['s']
+
+def reset(env):
+    env['s'] = env['s_init']
+#################################################################################################################################################
+
+#################################################################################################################################################
+## Q-learning
+def Q_learning_episode(Q, env, ϵ=0.10, γ=0.99, α=0.05):
+    s = env['s']
+    A = env['A']
+    
+    def policy(s): #ϵ-greedy exploration policy
+        if np.random.rand() < ϵ:
+            return np.random.choice(A)
+        else:
+            return max(A, key=lambda a: Q[(s, a)])
+
+    s = observe(env)
+    a = policy(s)
+    r = act(env, a)
+    sp = observe(env)
+    hist = [s]
+
+    while not s.terminal:
+        Q[(s,a)] += α*(r + γ*max(Q[(sp, ap)] for ap in A) - Q[(s, a)]) #use max Q value (off-policy)
+
+        s = sp
+        a = policy(sp)
+        r = act(env, a)
+        sp = observe(env)
+        hist.append(sp)
+
+    Q[(s,a)] += α*(r - Q[(s, a)])
+
+    return hist, Q
+     
+def Q_learning(env, n_episodes=100,**kwargs):
+    S = env['S']
+    A = env['A']
+
+    Q = {(s, a): 0.0 for s in S for a in A} 
+    episodes = []
+    
+    for i in range(1,n_episodes+1):
+        reset(env)
+        episodes.append(Q_learning_episode(Q,env,ϵ=max(0.05,0.2*(1-i/n_episodes)),γ=0.95,**kwargs))    
+    return episodes
+
+#################################################################################################################################################
+
+#################################################################################################################################################
+## Convert trained policies from P1-perspective to P2-perspective
+
+def P2_policy_converter(π_P1): #converts a P1 policy to P2 (inverts state elements) - function or dictionary formatting
+    if isinstance(π_P1, dict):
+        π_P1 = dict(π_P1)
+    def π_P2(s):
+        s_invert = State(W1=s.W2,M1=s.M2,R1=s.R2,W2=s.W1,M2=s.M1,R2=s.R1,terminal=s.terminal) #invert to simulate P1-view state
+        if callable(π_P1): #function version
+            if π_P1(s_invert) == 'P1_train_workers': 
+                return 'P2_train_workers' #return action from policy function, inverted for P2
+            elif π_P1(s_invert) == 'P1_train_marines': 
+                return 'P2_train_marines'
+            elif π_P1(s_invert) == 'P1_attack':
+                return 'P2_attack'
+
+        elif isinstance(π_P1, dict): #dictionary version
+            if π_P1[s_invert] == 'P1_train_workers': 
+                return 'P2_train_workers' #return action from policy dict, inverted for P2
+            elif π_P1[s_invert] == 'P1_train_marines': 
+                return 'P2_train_marines'
+            elif π_P1[s_invert] == 'P1_attack':
+                return 'P2_attack'
+            
+    return π_P2 #return whole policy
+
+#################################################################################################################################################
+
+#################################################################################################################################################
+## Script Execution
+if __name__ == "__main__":
+    game_sim_1 = build_MDP() #construct an MDP simulation using default P2 strategy
+
+    print("Beginning value iteration")
+    V = value_iteration(game_sim_1) # find V 
+    print("Value iteration complete")
+
+    # Explore VI results
+    s_init = State(W1=1,M1=1,R1=1,W2=1,M2=1,R2=1,terminal=0) #initial state
+
+    π_star_1 = greedy(game_sim_1, V)
+    π2 = alternating_training_attack
+
+
+    for _ in range(5): #run multiple iterations
+        simulate_game_VI(game_sim_1,π_star_1,π2,s_init)
+
+        
+    for _ in range(5): #run multiple iterations
+        simulate_game_MCTS(game_sim_1,π2,s_init)
+    ######################################################
+    # Compare MCTS to VI-derived optimal policy
+    print('\n Comparing best policy (value iteration) with MCTS: Run 1')
+    np.random.seed(16) 
+    simulate_game_VI(game_sim_1,π_star_1,π2,s_init) #VI
+    random.seed(5)
+    np.random.seed(16) 
+    simulate_game_MCTS(game_sim_1,π2,s_init) #MCTS
+
+    print('\n Comparing best policy (value iteration) with MCTS: Run 2')
+    np.random.seed(4) 
+    simulate_game_VI(game_sim_1,π_star_1,π2,s_init) #VI
+    random.seed(5)
+    np.random.seed(4) 
+    simulate_game_MCTS(game_sim_1,π2,s_init) #MCTS
+
+    #env = build_MDP() #default MDP setup
+    env = game_sim_1 #using pre-built internally
+
+    # Test act() and observe():
+    #s1 = observe(env)
+    #r1 = act(env, 'P1_train_workers')
+    #s2 = observe(env)
+    #r2 = act(env, 'P1_train_marines')
+    #3 = observe(env)
+    #r3 = act(env, 'P1_train_marines')
+    #s4 = observe(env)
+    #r4 = act(env, 'P1_attack')
+
+    #print(f"s1, r1 = {s1}, {r1}\n s2, r2 = {s2}, {r2}\n s3, r3 = {s3}, {r3}\n s4, r4 = {s4}, {r4}")
+
+    # Build new environment with P2 using VI-derived policy
+    print("MCTS performance when P2 uses a VI-derived policy:")
+
+    π_P2_from_VI = P2_policy_converter(π_star_1)
+
+    game_sim_2 = update_MDP_P2_policy(env,π_P2_from_VI)
+
+    for _ in range(5):
+        simulate_game_MCTS(game_sim_2,π_P2_from_VI,s_init)
+
+    # Q-learning 
+    Q_learning_episodes = Q_learning(env, n_episodes=2000, α=0.1)
+
+    final_Q = Q_learning_episodes[-1][1]  # Q from last episode
+    S = env['S']
+    A = env['A']
+
+    π_Q_learning = lambda s: max(A, key=lambda a: final_Q[(s, a)]) #greedy policy based on Q-learning
+
+    for _ in range(5): #simulate multiple games playing Q-learning policy for P1
+        simulate_game(env,π_Q_learning)

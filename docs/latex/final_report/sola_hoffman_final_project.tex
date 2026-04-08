@@ -1,0 +1,147 @@
+\documentclass[conference]{IEEEtran}
+
+\usepackage{amsmath, amssymb}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{soul}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=black,
+  urlcolor=black
+}
+
+\begin{document}
+
+\title{A Sequential Decision-Making Framework for a Two-Player Resource-and-Combat Game\\
+{\normalsize ASEN 5264 --- Decision Making Under Uncertainty}}
+
+\author{
+  \IEEEauthorblockN{Michael Sola}
+  \IEEEauthorblockA{University of Colorado Boulder}
+  \and
+  \IEEEauthorblockN{Jeremiaha Hoffman}
+  \IEEEauthorblockA{University of Colorado Boulder}
+}
+
+\maketitle
+
+% -----------------------------------------------------------------------
+\section{Introduction}
+% -----------------------------------------------------------------------
+
+This project develops a two-player strategy game in which each player manages workers,
+marines, and resources with the goal of eliminating all enemy marines. The game is
+formalized as a Markov Decision Process and solved using methods from the course, with
+increasing model complexity across three tiers of completion. The first tier utilized
+value iteration to solve for an optimal policy against a deterministic policy of the
+adversary and reinforcement learning, specifically Q-learning, Deep Q-Network (DQN)
+learning, and \hl{add others}, to learn against this optimal policy. The second tier
+formulated this problem as both a Markov Game (MG) and a Partially Observable Markov
+Decision Process (POMDP). The third tier combined the MG and POMDP into a Partially
+Observable Stochastic Game (POSG). \hl{summarize results}
+
+% -----------------------------------------------------------------------
+\section{Background and Related Work}
+% -----------------------------------------------------------------------
+
+\hl{Provide at least 5 citations of related published work and briefly describe how each
+relates to this project.}
+
+% -----------------------------------------------------------------------
+\section{Problem Formulation}
+% -----------------------------------------------------------------------
+
+\subsection{State Space}
+
+The state for each player $i \in \{1, 2\}$ is $(w_i, m_i, r_i)$, representing workers,
+marines, and resources. The joint state is $s = (w_1, m_1, r_1, w_2, m_2, r_2)$, plus
+a terminal state $s_{\text{term}}$. Both players start at $w = m = r = 1$. Resources
+increase by $w_i$ each turn.
+
+\subsection{Action Space}
+
+Each player selects from the following action set each turn:
+\[
+  \mathcal{A} = \{\texttt{train worker},\; \texttt{train marine},\; \texttt{attack}\}
+\]
+
+\subsection{Transition Model}
+
+The table below summarizes the transition model. If either player has $m_i = 0$, the
+game transitions to $s_{\text{term}}$ with probability 1 regardless of action.
+
+\begin{table}[h]
+\centering
+\caption{Transition Model}
+\begin{tabular}{llll}
+  \toprule
+  \textbf{Action} & \textbf{Condition} & \textbf{Next State} & \textbf{Prob.} \\
+  \midrule
+  train worker  & $r \geq 1$  & $w' = w+1,\; r' = r-1$                      & $0.9$ \\
+  train marine  & $r \geq 1$  & $m' = m+r,\; r' = 0$                         & $0.9$ \\
+  attack        & always      & $m'_A = m_A - k_A,\; m'_B = m_B - k_B$       & $P(k_A, k_B)$ \\
+  terminal      & $m_i = 0$   & $s_{\text{term}}$                             & $1.0$ \\
+  \bottomrule
+\end{tabular}
+\end{table}
+
+where $k_A \sim \mathrm{Binomial}(m_B,\, p_B)$, $k_B \sim
+\mathrm{Binomial}(m_A,\, p_A)$, and $P(k_A, k_B)$ is their product under independence.
+
+\subsection{Reward}
+
+$R = 1$ upon reaching $s_{\text{term}}$ as the winner; $R = 0$ otherwise.
+
+% -----------------------------------------------------------------------
+\section{Solution Approach}
+% -----------------------------------------------------------------------
+
+\subsection{Tier 1 --- MDP, Value Iteration, and Reinforcement Learning}
+
+The game is formalized as an MDP and solved via value iteration to obtain an optimal
+policy $\pi^*$. A reinforcement learning agent (e.g., Q-learning or DQN) is
+then trained on the same environment, with the two approaches compared in terms of
+policy quality and convergence.
+
+\subsection{Tier 2 --- Markov Game and POMDP}
+
+The model is extended to either a Partially Observable MDP, where each player observes
+only a noisy estimate of the opponent's state, or a Markov Game, where both players act
+simultaneously and transitions depend on the joint action.
+
+\subsection{Tier 3 --- Partially Observable Stochastic Game}
+
+The full formulation combines partial observability with simultaneous multi-agent
+interaction. Each player maintains a belief over the joint state and reasons about
+opponent behavior under uncertainty. Solution methods may include multi-agent
+reinforcement learning or approximate dynamic programming techniques.
+
+% -----------------------------------------------------------------------
+\section{Results}
+% -----------------------------------------------------------------------
+
+\hl{Present results with plots and tables. Quantify uncertainty where possible (e.g.,
+confidence intervals over multiple runs). Compare value iteration policy against RL
+agents.}
+
+% -----------------------------------------------------------------------
+\section{Conclusion}
+% -----------------------------------------------------------------------
+
+\hl{Summarize findings, key takeaways, and potential future extensions.}
+
+% -----------------------------------------------------------------------
+\section*{Contributions}
+% -----------------------------------------------------------------------
+
+\hl{Describe the contributions of each team member. Example: ``Michael implemented value
+iteration and the MDP environment; Jeremiaha implemented the RL agents and ran
+experiments.''}
+
+The authors grant permission for this report to be posted publicly.
+
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}
