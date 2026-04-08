@@ -14,9 +14,9 @@ class GameEnv:
     ACTIONS_ALL = ['P1_train_workers', 'P1_train_marines', 'P1_attack',
                    'P2_train_workers', 'P2_train_marines', 'P2_attack']
 
-    def __init__(self, π_P2, s_init=None, γ=0.95):
-        if s_init is None:
-            s_init = State(W1=1, M1=1, R1=1, W2=1, M2=1, R2=1, terminal=0)
+    S_INIT = State(W1=1, M1=1, R1=1, W2=1, M2=1, R2=1, terminal=0)
+
+    def __init__(self, π_P2, s_init=S_INIT, γ=0.95):
 
         self.s_init = s_init
         self.s = s_init
