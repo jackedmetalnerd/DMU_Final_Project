@@ -51,6 +51,7 @@ all_pass &= check("State ordering identical", ok)
 
 # ══════════════════════════════════════════════════════════════════════════════
 print("\n=== 2. Reward Vector ===")
+breakpoint()
 max_diff = np.max(np.abs(orig_sim['R'] - env.R))
 ok = max_diff < 1e-10
 all_pass &= check("R vectors match", ok, f"max diff={max_diff:.2e}")
