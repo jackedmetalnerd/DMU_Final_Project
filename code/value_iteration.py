@@ -3,6 +3,7 @@ import time
 from tqdm import tqdm
 from game_env import GameEnv, State
 from policies import alternating_training_attack, P2_policy_converter
+from reward import Reward
 
 
 class ValueIteration:
@@ -18,18 +19,16 @@ class ValueIteration:
         S, A, T, R, γ = self.env.S, self.env.A, self.env.T, self.env.R, self.env.γ
 
         term_mask = np.array([s.terminal == 1 for s in S])
-        term_vals = np.where(
-            [s.M1 > 0 and s.M2 == 0 for s in S], 1.0,
-            np.where([s.terminal == 1 for s in S], -1.0, 0.0)
-        )
+        term_vals = np.array([Reward.terminal_value(s) if s.terminal else 0.0 for s in S])
 
         V = term_vals.copy()
         it, start = 0, time.time()
 
+        R_nonterminal = np.where(term_mask, 0.0, R)
         while True:
-            Vp = γ * (T[A[0]] @ V)
+            Vp = R_nonterminal + γ * (T[A[0]] @ V)
             for a in A[1:]:
-                Vp = np.maximum(Vp, γ * (T[a] @ V))
+                Vp = np.maximum(Vp, R_nonterminal + γ * (T[a] @ V))
             Vp[term_mask] = term_vals[term_mask]
 
             delta = np.max(np.abs(V - Vp))

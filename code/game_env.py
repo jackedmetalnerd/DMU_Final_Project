@@ -16,13 +16,20 @@ class GameEnv:
 
     S_INIT = State(W1=1, M1=1, R1=1, W2=1, M2=1, R2=1, terminal=0)
 
-    def __init__(self, π_P2, s_init=S_INIT, γ=0.95):
+    def __init__(self, π_P2, s_init=S_INIT, γ=0.95, reward=None):
+        from reward import Reward
 
         self.s_init = s_init
         self.s = s_init
         self.π_P2 = π_P2
         self.γ = γ
-        
+        if reward is None:
+            self.reward = Reward()
+        elif isinstance(reward, Reward):
+            self.reward = reward
+        else:
+            self.reward = Reward(fn=reward)
+
         self.S = self._build_state_space()
         self.S_index = {s: i for i, s in enumerate(self.S)}
         self.A = self.ACTIONS_P1
@@ -33,7 +40,7 @@ class GameEnv:
         T_res = self._build_resource_matrix()
         self.T = {a: T_base[a] @ T_P2 @ T_res for a in self.A}
         self.T_base = T_base
-        self.R = self._build_reward_vector()
+        self.R = self.reward.build_vector(self.S)
 
     # ------------------------------------------------------------------
     # State / action helpers
@@ -217,9 +224,6 @@ class GameEnv:
                 rows.append(s_idx); cols.append(S_index[sp]); vals.append(1.0)
         return csr_matrix((vals, (rows, cols)), shape=(n, n))
 
-    def _build_reward_vector(self):
-        R = np.zeros(len(self.S))
-        for idx, s in enumerate(self.S):
-            if s.terminal:
-                R[idx] = 1.0 if (s.M1 > 0 and s.M2 == 0) else -1.0
-        return R
+    @property
+    def reward_fn_name(self):
+        return self.reward.name
