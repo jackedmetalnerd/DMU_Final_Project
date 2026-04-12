@@ -33,7 +33,7 @@ print("\n[Original]")
 orig_sim = build_MDP(π_P2=alternating_training_attack, s_init=s_init)
 
 print("\n[OOP]")
-env = GameEnv(π_P2=ata_oop, s_init=s_init)
+env = GameEnv(opponent_policy=ata_oop, initial_state=s_init)
 
 all_pass = True
 
@@ -58,7 +58,7 @@ all_pass &= check("R vectors match", ok, f"max diff={max_diff:.2e}")
 
 # ══════════════════════════════════════════════════════════════════════════════
 print("\n=== 3. Transition Matrices (combined T) ===")
-env._model.build_matrices()
+env.transition_model.build_matrices()
 for a in env.A:
     diff = (orig_sim['T'][a] - env.T[a])
     max_diff = np.max(np.abs(diff.data)) if diff.nnz > 0 else 0.0

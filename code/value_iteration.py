@@ -16,8 +16,8 @@ class ValueIteration:
         self.π = None
 
     def solve(self):
-        if not self.env._model.T:
-            self.env._model.build_matrices()
+        if not self.env.transition_model.T:
+            self.env.transition_model.build_matrices()
         S, A, T, R, γ = self.env.S, self.env.A, self.env.T, self.env.R, self.env.γ
 
         term_mask = np.array([s.terminal == 1 for s in S])
@@ -58,7 +58,7 @@ class ValueIteration:
 
 if __name__ == '__main__':
     s_init = State(W1=1, M1=1, R1=1, W2=1, M2=1, R2=1, terminal=0)
-    env = GameEnv(π_P2=alternating_training_attack, s_init=s_init)
+    env = GameEnv(opponent_policy=alternating_training_attack, initial_state=s_init)
 
     solver = ValueIteration(env)
     print("Running value iteration...")

@@ -53,7 +53,7 @@ class MCTSSolver:
                 break
             valid = [a for a in env.A if env.valid_act(a, s)]
             a = random.choice(valid)
-            s = env._model.sample(s, a)
+            s = env.transition_model.sample(s, a)
             t += 1
         return r_total
 
@@ -70,7 +70,7 @@ class MCTSSolver:
             return self._rollout(s, depth)
 
         a = self._ucb_action(s)
-        sp = env._model.sample(s, a)
+        sp = env.transition_model.sample(s, a)
 
         q_it = env.reward.evaluate(s) + env.γ * self._run(sp, depth - 1)
         self.n[(s, a)] += 1
@@ -86,7 +86,7 @@ class MCTSSolver:
 
     def simulate(self, s_init=None, max_turns=50):
         if s_init is None:
-            s_init = self.env.s_init
+            s_init = self.env.initial_state
         s = s_init
         env = self.env
         self.reset_tree()
@@ -105,19 +105,19 @@ class MCTSSolver:
                 return
 
             a1 = self.get_action(s)
-            a2 = env.π_P2(s)
+            a2 = env.opponent_policy(s)
             print(f"{turn:<5} | {a1:<17} | {a2:<17} | "
                   f"({s.W1:02d},{s.M1:02d},{s.R1:02d} | "
                   f"{s.W2:02d},{s.M2:02d},{s.R2:02d} | {s.terminal})")
 
-            s = env._model.sample(s, a1)
+            s = env.transition_model.sample(s, a1)
 
         print('\nGame Over! Draw - maximum turns reached\n')
 
 
 if __name__ == '__main__':
     s_init = State(W1=1, M1=1, R1=1, W2=1, M2=1, R2=1, terminal=0)
-    env = GameEnv(π_P2=alternating_training_attack, s_init=s_init)
+    env = GameEnv(opponent_policy=alternating_training_attack, initial_state=s_init)
 
     agent = MCTSSolver(env, c=sqrt(2), depth=50, num_runs=10000)
     print("Running MCTS simulations...")

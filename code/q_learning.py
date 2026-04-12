@@ -55,7 +55,7 @@ class QLearning:
 
 if __name__ == '__main__':
     s_init = State(W1=1, M1=1, R1=1, W2=1, M2=1, R2=1, terminal=0)
-    env = GameEnv(π_P2=alternating_training_attack, s_init=s_init)
+    env = GameEnv(opponent_policy=alternating_training_attack, initial_state=s_init)
 
     agent = QLearning(env, γ=0.95, α=0.1, ϵ_start=0.2, ϵ_min=0.05)
     print("Training Q-learning agent...")

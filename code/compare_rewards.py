@@ -89,7 +89,7 @@ def compare(solvers_to_run, reward_fns, n_games, ql_episodes, mcts_runs):
         print(f"  {first_line}")
         print(f"{'='*60}")
 
-        env = GameEnv(π_P2=alternating_training_attack, s_init=S_INIT, reward=Reward(rf_fn))
+        env = GameEnv(opponent_policy=alternating_training_attack, initial_state=S_INIT, reward=Reward(rf_fn))
 
         if 'vi' in solvers_to_run:
             policy = run_vi(env)
