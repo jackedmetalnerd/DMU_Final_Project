@@ -1,10 +1,8 @@
 import numpy as np
-from collections import namedtuple
 from scipy.stats import binom
 from scipy.sparse import csr_matrix
 from tqdm import tqdm
-
-State = namedtuple('State', ['W1', 'M1', 'R1', 'W2', 'M2', 'R2', 'terminal'])
+from state import State
 
 
 class GameEnv:
@@ -99,12 +97,10 @@ class GameEnv:
 
         for turn in range(1, max_turns + 1):
             if s.terminal:
-                winner = ("Winner: P1" if s.M1 > 0
-                          else "Winner: P2" if s.M2 > 0 else "Draw")
                 print(f"END   | {'TERMINAL':<17} | {'TERMINAL':<17} | "
                       f"({s.W1:02d},{s.M1:02d},{s.R1:02d} | "
                       f"{s.W2:02d},{s.M2:02d},{s.R2:02d} | {s.terminal})")
-                print(f"\nGame Over! {winner} in {turn - 1} turns\n")
+                print(f"\nGame Over! Winner: {s.winner()} in {turn - 1} turns\n")
                 return
 
             a1 = π_P1[s] if isinstance(π_P1, dict) else π_P1(s)

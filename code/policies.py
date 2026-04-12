@@ -1,4 +1,4 @@
-from game_env import State
+from state import State
 
 
 def alternating_training(s):

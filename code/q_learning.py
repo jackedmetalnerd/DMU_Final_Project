@@ -1,5 +1,6 @@
 import numpy as np
-from game_env import GameEnv, State
+from game_env import GameEnv
+from state import State
 from policies import alternating_training_attack
 
 

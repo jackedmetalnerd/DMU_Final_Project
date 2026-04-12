@@ -1,7 +1,8 @@
 import random
 import numpy as np
 from math import sqrt, log
-from game_env import GameEnv, State
+from game_env import GameEnv
+from state import State
 from policies import alternating_training_attack
 
 
@@ -105,12 +106,10 @@ class MCTSSolver:
 
         for turn in range(1, max_turns + 1):
             if s.terminal:
-                winner = ("Winner: P1" if s.M1 > 0
-                          else "Winner: P2" if s.M2 > 0 else "Draw")
                 print(f"END   | {'TERMINAL':<17} | {'TERMINAL':<17} | "
                       f"({s.W1:02d},{s.M1:02d},{s.R1:02d} | "
                       f"{s.W2:02d},{s.M2:02d},{s.R2:02d} | {s.terminal})")
-                print(f"\nGame Over! {winner} in {turn - 1} turns\n")
+                print(f"\nGame Over! Winner: {s.winner()} in {turn - 1} turns\n")
                 return
 
             a1 = self.get_action(s)

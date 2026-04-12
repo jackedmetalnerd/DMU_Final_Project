@@ -63,23 +63,6 @@ class Reward:
             return 1.0 if (s.M1 > 0 and s.M2 == 0) else 0.0
         return 0.0
 
-    # ── Terminal helpers ──────────────────────────────────────────────────────
-
-    @staticmethod
-    def is_win(s) -> bool:
-        """True if P1 has won: P1 has marines, P2 has none."""
-        return bool(s.M1 > 0 and s.M2 == 0)
-
-    @staticmethod
-    def is_loss(s) -> bool:
-        """True if the state is terminal and P1 did not win."""
-        return bool(s.terminal and not (s.M1 > 0 and s.M2 == 0))
-
-    @staticmethod
-    def terminal_value(s) -> float:
-        """Fixed ±1 terminal value used by VI for pinning, independent of reward fn."""
-        return 1.0 if (s.M1 > 0 and s.M2 == 0) else -1.0
-
     # ── Instance ──────────────────────────────────────────────────────────────
 
     def __init__(self, fn=None):

@@ -16,7 +16,8 @@ import argparse
 import numpy as np
 from math import sqrt
 
-from game_env import GameEnv, State
+from game_env import GameEnv
+from state import State
 from policies import alternating_training_attack
 from reward import Reward
 from value_iteration import ValueIteration
@@ -46,9 +47,9 @@ def measure_win_rate(env, policy_fn, n_games=50, seed=42):
             probs = row.data / row.data.sum()
             s = env.S[np.random.choice(row.indices, p=probs)]
         if s.terminal:
-            if Reward.is_win(s):
+            if s.is_win():
                 wins += 1
-            elif Reward.is_loss(s):
+            elif s.is_loss():
                 losses += 1
             else:
                 draws += 1
