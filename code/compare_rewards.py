@@ -73,7 +73,7 @@ def run_ql(env, n_episodes=2000):
 
 def run_mcts(env, num_runs=1000):
     agent = MCTSSolver(env, c=sqrt(2), depth=50, num_runs=num_runs)
-    return agent.get_action
+    return agent.solve()
 
 # ── Main comparison loop ───────────────────────────────────────────────────────
 

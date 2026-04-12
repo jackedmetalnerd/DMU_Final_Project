@@ -4,16 +4,17 @@ from math import sqrt, log
 from game_env import GameEnv
 from state import State
 from policy import MCTSPolicy
+from solver import Solver
 from policies import alternating_training_attack
 
 
-class MCTSSolver:
+class MCTSSolver(Solver):
     """Monte Carlo Tree Search agent for a GameEnv."""
 
     def __init__(self, env: GameEnv, c=sqrt(2), depth=50, num_runs=10000):
-        self.env = env
-        self.c = c
-        self.depth = depth
+        super().__init__(env)
+        self.c        = c
+        self.depth    = depth
         self.num_runs = num_runs
         self.n = {}  # visit counts  (s, a)
         self.q = {}  # action values (s, a)
