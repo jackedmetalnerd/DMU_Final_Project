@@ -63,8 +63,8 @@ def measure_win_rate(env, policy_fn, n_games=50, seed=42):
 def run_vi(env):
     solver = ValueIteration(env)
     print(f"    [VI] solving...")
-    V, π = solver.solve()
-    return lambda s: π[s]
+    π = solver.solve()
+    return π
 
 def run_ql(env, n_episodes=2000):
     agent = QLearning(env, γ=0.95, α=0.1, ϵ_start=0.2, ϵ_min=0.05)

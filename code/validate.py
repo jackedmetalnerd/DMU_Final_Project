@@ -73,7 +73,8 @@ V_orig = vi_orig(orig_sim)
 
 print("\n[OOP VI]")
 solver = ValueIteration(env)
-V_oop, π_oop = solver.solve()
+π_oop = solver.solve()
+V_oop = solver.V
 
 max_diff = np.max(np.abs(V_orig - V_oop))
 ok = max_diff < 1e-6
