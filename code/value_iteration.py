@@ -3,6 +3,7 @@ import time
 from tqdm import tqdm
 from game_env import GameEnv
 from state import State
+from policy import DictPolicy
 from policies import alternating_training_attack, P2_policy_converter
 
 
@@ -53,7 +54,8 @@ class ValueIteration:
         S, A, T, R, γ = self.env.S, self.env.A, self.env.T, self.env.R, self.env.γ
         Q = np.array([R + γ * (T[a] @ V) for a in A])
         best = np.argmax(Q, axis=0)
-        return {s: A[best[i]] for i, s in enumerate(tqdm(S, desc="Building greedy policy"))}
+        policy_dict = {s: A[best[i]] for i, s in enumerate(tqdm(S, desc="Building greedy policy"))}
+        return DictPolicy(policy_dict)
 
 
 if __name__ == '__main__':

@@ -1,5 +1,6 @@
 from state import State
 from action import Action
+from policy import FunctionPolicy, SymmetricPolicy
 
 
 def alternating_training(s):
@@ -19,17 +20,9 @@ def alternating_training_attack(s):
 
 
 def P2_policy_converter(p1_policy):
-    """Wrap a P1 policy (dict or callable) to act as P2 by inverting the state."""
-    ACTION_MAP = {
-        Action.P1_TRAIN_WORKERS: Action.P2_TRAIN_WORKERS,
-        Action.P1_TRAIN_MARINES: Action.P2_TRAIN_MARINES,
-        Action.P1_ATTACK:        Action.P2_ATTACK,
-    }
+    """Wrap a P1 policy (dict, Policy, or callable) to act as P2 by inverting the state.
 
-    def p2_policy(s):
-        s_inv = State(W1=s.W2, M1=s.M2, R1=s.R2,
-                      W2=s.W1, M2=s.M1, R2=s.R1, terminal=s.terminal)
-        a_p1 = p1_policy[s_inv] if isinstance(p1_policy, dict) else p1_policy(s_inv)
-        return ACTION_MAP[a_p1]
-
-    return p2_policy
+    Delegates to SymmetricPolicy for the actual implementation.
+    Kept for backward compatibility with existing call sites.
+    """
+    return SymmetricPolicy(p1_policy)

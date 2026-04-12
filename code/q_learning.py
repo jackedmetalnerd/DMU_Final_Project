@@ -1,6 +1,7 @@
 import numpy as np
 from game_env import GameEnv
 from state import State
+from policy import DictPolicy
 from policies import alternating_training_attack
 
 
@@ -22,8 +23,16 @@ class QLearning:
             if i % 100 == 0:
                 print(f"Episode {i}/{n_episodes}")
 
-    def policy(self, s):
-        """Return the greedy action from the learned Q table."""
+    def policy(self, s=None):
+        """Return the greedy action for state s, or a DictPolicy over all states.
+
+        Called with no arguments: returns a DictPolicy built from Q-table argmax.
+        Called with a state: returns the greedy action for that single state.
+        """
+        if s is None:
+            policy_dict = {st: max(self.env.A, key=lambda a: self.Q[(st, a)])
+                           for st in self.env.S}
+            return DictPolicy(policy_dict)
         return max(self.env.A, key=lambda a: self.Q[(s, a)])
 
     # ------------------------------------------------------------------
