@@ -24,7 +24,7 @@ class GameEnv:
 
         self.states      = State.build_space()
         self.state_index = {s: i for i, s in enumerate(self.states)}
-        self.transition_model = TransitionModel(self.states, self.state_index, opponent_policy)
+        self.transition_model = TransitionModel(self.states, self.state_index, self.opponent_policy)
         self.actions     = self.transition_model.ACTIONS_P1
 
     # ── MDP components (standard letter aliases used by solvers / validate) ──
