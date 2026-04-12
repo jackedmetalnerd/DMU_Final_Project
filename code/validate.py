@@ -16,6 +16,7 @@ from game_env import GameEnv
 from policies import alternating_training_attack as ata_oop
 from value_iteration import ValueIteration
 from q_learning import QLearning
+from dqn import DQNSolver
 
 PASS = "  PASS"
 FAIL = "  FAIL"
@@ -164,6 +165,21 @@ wr_q_oop = sum(
 ok = abs(wr_q_orig - wr_q_oop) < 0.10
 all_pass &= check("Q-learning win rates within 10%", ok,
                   f"orig={wr_q_orig:.2f} oop={wr_q_oop:.2f}")
+
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n=== 7. DQN (convergence check) ===")
+print("[OOP DQN]")
+dqn = DQNSolver(env)
+dqn.solve(n_episodes=500)
+
+np.random.seed(77)
+wr_dqn = sum(
+    run_oop_game(env, dqn.policy(), s_init) == 'P1'
+    for _ in range(50)) / 50
+
+ok = abs(wr_dqn - wr_q_oop) < 0.10
+all_pass &= check("DQN win rates within 10% of QL", ok,
+                  f"dqn={wr_dqn:.2f} ql={wr_q_oop:.2f}")
 
 # ══════════════════════════════════════════════════════════════════════════════
 print("\n" + "=" * 50)

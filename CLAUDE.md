@@ -33,7 +33,7 @@ python q_learning.py        # Trains Q-agent 2000 episodes, runs 5 simulations
 python mcts.py              # Runs 5 MCTS game simulations
 ```
 
-There is no build system, package manager, or test framework. Dependencies: `numpy`, `scipy`, `tqdm`, `matplotlib`.
+There is no build system, package manager, or test framework. Dependencies: `numpy`, `scipy`, `tqdm`, `matplotlib`, `torch`.
 
 ## Architecture
 
@@ -49,7 +49,8 @@ There is no build system, package manager, or test framework. Dependencies: `num
 | `policies.py` | Fixed P2 opponent policies (`alternating_training`, `alternating_training_attack`) |
 | `value_iteration.py` | `ValueIteration` solver class |
 | `q_learning.py` | `QLearning` agent class (tabular, epsilon-greedy) |
-| `mcts.py` | `MCTSSolver` class (UCB1, recursive rollouts) |
+| `mcts.py` | `MCTSSolver(Solver)` — UCB1 Monte Carlo Tree Search |
+| `dqn.py` | `DQNSolver(Solver)` — Deep Q-Network with replay buffer and target network |
 | `validate.py` | Integration test suite comparing old vs. new implementations |
 
 ### Solver Pipeline
