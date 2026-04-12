@@ -42,76 +42,115 @@ There is no build system, package manager, or test framework. Dependencies: `num
 | File | Role |
 |------|------|
 | `project_mdp.py` | Original monolithic implementation — ground truth reference |
-| `state.py` | `State` class — immutable game state with game-logic predicates (`is_win`, `is_loss`, `winner`, `terminal_value`) |
-| `transition.py` | `TransitionModel` class — all transition logic; exposes `transition(s,a)`, `sample(s,a)`, `build_matrices()` |
-| `game_env.py` | OOP refactor: `GameEnv` class, the canonical environment interface |
+| `state.py` | `State` class — immutable game state with game-logic predicates |
+| `action.py` | `Action` class — immutable action with string interoperability |
+| `transition.py` | `TransitionModel` class — all transition logic |
 | `reward.py` | `Reward` class — reward functions and active selector |
-| `policies.py` | Fixed P2 opponent policies (`alternating_training`, `alternating_training_attack`) |
-| `value_iteration.py` | `ValueIteration` solver class |
-| `q_learning.py` | `QLearning` agent class (tabular, epsilon-greedy) |
-| `mcts.py` | `MCTSSolver` class (UCB1, recursive rollouts) |
+| `mdp.py` | `MDP` base class — bundles (states, actions, transition_model, reward, gamma) |
+| `game_env.py` | `GameEnv(MDP)` — adds RL/simulation interface to MDP |
+| `policy.py` | `Policy` ABC + `DictPolicy`, `FunctionPolicy`, `SymmetricPolicy`, `MCTSPolicy` |
+| `policies.py` | Hand-coded P2 opponent policies; `P2_policy_converter` wraps `SymmetricPolicy` |
+| `solver.py` | `Solver` ABC — requires `solve() -> Policy` |
+| `value_iteration.py` | `ValueIteration(Solver)` — sparse matrix VI |
+| `q_learning.py` | `QLearning(Solver)` — tabular epsilon-greedy Q-learning |
+| `mcts.py` | `MCTSSolver(Solver)` — UCB1 Monte Carlo Tree Search |
 | `validate.py` | Integration test suite comparing old vs. new implementations |
+| `compare_rewards.py` | Runs solvers across reward functions; reports win rates |
+
+### Class Hierarchy
+
+```
+MDP
+└── GameEnv          # adds act(), observe(), reset(), simulate(), update_P2_policy()
+
+Solver (ABC)
+├── ValueIteration   # solve() → DictPolicy; uses T[a] @ V sparse matrix products
+├── QLearning        # solve(n_episodes) → DictPolicy; uses sample() rollouts
+└── MCTSSolver       # solve() → MCTSPolicy; uses sample() rollouts
+
+Policy (ABC)
+├── DictPolicy       # wraps {State → Action} dict; __getitem__ for dict-style access
+├── FunctionPolicy   # wraps a plain callable
+├── SymmetricPolicy  # mirrors P1 Policy to P2 by swapping player perspective
+└── MCTSPolicy       # lazy; calls MCTSSolver.get_action(s) on each step
+```
 
 ### Solver Pipeline
 
 ```
-GameEnv(π_P2, s_init)        # Build environment with opponent policy baked in
+GameEnv(opponent_policy, initial_state)   # Build environment
     ↓
-Solver(env).solve()           # ValueIteration / QLearning.train() / MCTSSolver
+Solver(env).solve()                       # Returns a Policy object
     ↓
-π_star: dict or callable      # Policy mapping state → action
+policy: Policy                            # Callable: policy(s) -> Action
     ↓
-env.simulate(π_star, label)   # Evaluate policy
+env.simulate(policy, label)               # Evaluate policy
 ```
 
 ### TransitionModel (`transition.py`)
 
-All transition logic lives in `TransitionModel`, which `GameEnv` instantiates as `env._model`. Two public interfaces:
+All transition logic lives in `TransitionModel`, which `GameEnv` instantiates as `env.transition_model`. Two public interfaces:
 
-- **`transition(s, a) -> dict[State, float]`** — returns next-state distribution for one (state, action) pair without using precomputed matrices. Implements the full P1-action → P2-action → resource-update chain directly. Used by QL and MCTS for episode rollouts.
-- **`sample(s, a) -> State`** — samples one next state from `transition(s, a)`. Used by `GameEnv.act()`, `GameEnv.simulate()`, and MCTS internally.
-- **`build_matrices() -> None`** — precomputes scipy sparse CSR matrices for all 3 P1 actions. Expensive (several minutes). Called once in `GameEnv.__init__()`. Only needed by VI for `T[a] @ V` matrix-vector products.
-
-Combat outcomes (binomial losses for both sides) are precomputed in a 121-entry lookup dict at construction time — fast enough to always build, and needed by both `transition()` and `build_matrices()`.
+- **`transition(s, a) -> dict[State, float]`** — returns next-state distribution without precomputed matrices. Used by QL and MCTS rollouts.
+- **`sample(s, a) -> State`** — samples one next state. Used by `GameEnv.act()`, `GameEnv.simulate()`, and MCTS.
+- **`build_matrices() -> None`** — precomputes scipy sparse CSR matrices for all 3 P1 actions. Expensive. Called explicitly by VI before solving; not called during `GameEnv.__init__()`.
 
 The combined transition matrix chain is:
 ```
 T_combined[a] = T_base[a] @ T_P2 @ T_resource
 ```
 
-Any P2 policy change requires calling `env.update_P2_policy(π_P2_new)`, which rebuilds `T_P2` and recomposes `T`.
+Any P2 policy change requires calling `env.update_P2_policy(new_policy)`, which rebuilds `T_P2` and recomposes `T`.
 
 ### State Class (`state.py`)
 
-`State` is an immutable class (not a namedtuple) with `__slots__` for memory efficiency. It is hashable and dict-key compatible, with hash matching the old namedtuple so validate.py comparisons work. Key methods:
+`State` is an immutable class (not a namedtuple) with `__slots__` for memory efficiency. It is hashable and dict-key compatible. Key methods:
 - `is_win()` / `is_loss()` / `is_terminal()` — game outcome predicates
 - `winner()` → `'P1'`, `'P2'`, or `'Draw'`
 - `terminal_value()` → fixed `±1.0` used by VI for terminal pinning
+- `build_space()` — classmethod returning the full 3,543,122-state list
 
-All win/loss checks throughout the codebase use these methods rather than inline field comparisons.
+### Action Class (`action.py`)
 
-### Policy Conventions
+`Action` is immutable with `player` and `type` fields. Key design: `__hash__ = hash(str(self))` and `__eq__` handles string comparison, so Action objects and string literals are interchangeable as dict keys — Q-tables and T-matrices built with either type work with both.
 
-- Policies are callables: `π(s: State) -> str (action name)`
-- `policies.py::P2_policy_converter(π_P1)` mirrors a P1 policy to P2 by inverting state (swapping P1/P2 fields) and remapping action names
+### Policy Classes (`policy.py`)
 
-## Reward Function Testing (reward_testing branch)
+- `DictPolicy` wraps a `{State → Action}` dict with both callable and `__getitem__` access
+- `SymmetricPolicy` mirrors a P1 policy to P2 by swapping state fields; replaces `P2_policy_converter`
+- `MCTSPolicy` calls `MCTSSolver.get_action(s)` on each invocation
+
+### MDP and GameEnv (`mdp.py`, `game_env.py`)
+
+`MDP` is the formal structure holding (states, actions, transition_model, reward, gamma). `GameEnv` inherits from `MDP` and adds the RL interface. Backward-compat property aliases on `MDP`:
+- `S`, `A`, `T`, `R`, `γ`, `S_index`
+
+`T` returns `transition_model.T` — an empty dict until `build_matrices()` is called.
+
+### Solver and Algorithm Classes (`solver.py`, solver files)
+
+`Solver` is the ABC; `solve()` is the only required method. All three solvers inherit from it:
+- `ValueIteration`: `self.V` stores value function after solve; returns `DictPolicy`
+- `QLearning`: `self.Q` stores Q-table; `solve(n_episodes)` returns `DictPolicy`; `policy(s)` still works for single-state lookup
+- `MCTSSolver`: `solve()` returns `MCTSPolicy(self)`; planning runs lazily on each `get_action(s)` call
+
+## Reward Function Testing
 
 **Goal:** Test different reward functions across all solvers without changing `game_env.py` or solver files.
 
 ### Switching the active reward function
 
-Edit `code/reward_functions.py` — change only the last line:
+Edit `code/reward.py` — change only the last line:
 ```python
-ACTIVE = shaped_military_advantage   # was: terminal_only
+Reward.ACTIVE = Reward.shaped_military_advantage   # was: Reward.terminal_only
 ```
 No other file needs to change. All solvers pick up the new reward automatically.
 
 ### Adding a new reward function
 
-1. Add a function to `code/reward_functions.py` following the interface: `reward_fn(s) -> float` where `s` has fields `W1, M1, R1, W2, M2, R2, terminal`
-2. Add it to `ALL_REWARD_FNS` in `code/compare_rewards.py`
-3. Set `ACTIVE = your_new_fn` to use it
+1. Add a `@staticmethod` to `Reward` in `code/reward.py` with signature `fn(s) -> float`
+2. Add it to `Reward.ALL` at the bottom of `reward.py`
+3. Set `Reward.ACTIVE = Reward.your_new_fn` to use it
 
 ### Running comparisons
 
@@ -125,8 +164,10 @@ python compare_rewards.py --games 100                  # larger sample
 
 ### VI Bellman fix
 
-`value_iteration.py`'s solve loop was updated to include `R` in the Bellman backup (`R_nonterminal + γ * T[a] @ V`) so shaped rewards properly influence VI convergence — not just policy extraction. Terminal state values are still pinned to ±1 each iteration.
+`value_iteration.py`'s solve loop includes `R` in the Bellman backup (`R_nonterminal + γ * T[a] @ V`) so shaped rewards properly influence VI convergence. Terminal state values are pinned to ±1 each iteration.
 
 ### validate.py Checks
 
 In order: state space equality → reward vector → transition matrices (per action, tol 1e-10) → value iteration (V diff tol 1e-6, policy agreement >99%) → win-rate comparison (50 games, within 5%) → Q-learning win-rates (500 ep training, within 10%).
+
+**Known pre-existing FAIL:** R vector diff = 1.00 on unreachable terminal states (terminal=1, M1>0, M2>0). All substantive checks (T, VI, win rates) pass.
