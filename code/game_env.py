@@ -1,59 +1,42 @@
 from state import State
 from transition import TransitionModel
+from mdp import MDP
 
 
-class GameEnv:
-    """MDP environment for the two-player resource-and-combat game."""
+class GameEnv(MDP):
+    """MDP environment for the two-player resource-and-combat game.
+
+    Inherits the formal MDP structure (S, A, T, R, γ) from MDP and adds
+    the RL/simulation interface: act(), observe(), reset(), simulate(),
+    and update_P2_policy().
+    """
 
     S_INIT = State(W1=1, M1=1, R1=1, W2=1, M2=1, R2=1, terminal=0)
 
     def __init__(self, opponent_policy, initial_state=S_INIT, gamma=0.95, reward=None):
         from reward import Reward
 
-        self.initial_state = initial_state
-        self.state         = initial_state
-        self.opponent_policy = opponent_policy
-        self.gamma         = gamma
-
         if reward is None:
-            self.reward = Reward()
+            reward_obj = Reward()
         elif isinstance(reward, Reward):
-            self.reward = reward
+            reward_obj = reward
         else:
-            self.reward = Reward(fn=reward)
+            reward_obj = Reward(fn=reward)
 
-        self.states      = State.build_space()
-        self.state_index = {s: i for i, s in enumerate(self.states)}
-        self.transition_model = TransitionModel(self.states, self.state_index, self.opponent_policy)
-        self.actions     = self.transition_model.ACTIONS_P1
+        states           = State.build_space()
+        transition_model = TransitionModel(states, {s: i for i, s in enumerate(states)}, opponent_policy)
 
-    # ── MDP components (standard letter aliases used by solvers / validate) ──
+        super().__init__(
+            states           = states,
+            actions          = transition_model.ACTIONS_P1,
+            transition_model = transition_model,
+            reward           = reward_obj,
+            gamma            = gamma,
+        )
 
-    @property
-    def S(self):
-        return self.states
-
-    @property
-    def A(self):
-        return self.actions
-
-    @property
-    def T(self):
-        return self.transition_model.T
-
-    @property
-    def R(self):
-        return self.reward.build_vector(self.states)
-
-    @property
-    def γ(self):
-        return self.gamma
-
-    # ── S_index alias for validate.py / solver compatibility ─────────────────
-
-    @property
-    def S_index(self):
-        return self.state_index
+        self.initial_state   = initial_state
+        self.state           = initial_state
+        self.opponent_policy = opponent_policy
 
     # ── Action validity ───────────────────────────────────────────────────────
 
