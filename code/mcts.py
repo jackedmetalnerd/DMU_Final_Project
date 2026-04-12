@@ -1,7 +1,9 @@
 import random
+import numpy as np
 from math import sqrt, log
 from game_env import GameEnv
 from state import State
+from policy import MCTSPolicy
 from policies import alternating_training_attack
 
 
@@ -16,6 +18,10 @@ class MCTSSolver:
         self.n = {}  # visit counts  (s, a)
         self.q = {}  # action values (s, a)
         self.t = {}  # transition counts (s, a, s')
+
+    def solve(self) -> MCTSPolicy:
+        """Return an MCTSPolicy that calls get_action() on demand."""
+        return MCTSPolicy(self)
 
     def reset_tree(self):
         self.n, self.q, self.t = {}, {}, {}
