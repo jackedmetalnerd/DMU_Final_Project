@@ -16,6 +16,8 @@ class ValueIteration:
         self.π = None
 
     def solve(self):
+        if not self.env._model.T:
+            self.env._model.build_matrices()
         S, A, T, R, γ = self.env.S, self.env.A, self.env.T, self.env.R, self.env.γ
 
         term_mask = np.array([s.terminal == 1 for s in S])

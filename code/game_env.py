@@ -30,12 +30,17 @@ class GameEnv:
         self.A = self.ACTIONS_P1
 
         self._model = TransitionModel(self.S, self.S_index, π_P2)
-        self._model.build_matrices()
-        self.R = self.reward.build_vector(self.S)
+        self._R = None  # built lazily on first access via env.R
 
     @property
     def T(self):
         return self._model.T
+
+    @property
+    def R(self):
+        if self._R is None:
+            self._R = self.reward.build_vector(self.S)
+        return self._R
 
     # ------------------------------------------------------------------
     # State / action helpers

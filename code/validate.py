@@ -58,6 +58,7 @@ all_pass &= check("R vectors match", ok, f"max diff={max_diff:.2e}")
 
 # ══════════════════════════════════════════════════════════════════════════════
 print("\n=== 3. Transition Matrices (combined T) ===")
+env._model.build_matrices()
 for a in env.A:
     diff = (orig_sim['T'][a] - env.T[a])
     max_diff = np.max(np.abs(diff.data)) if diff.nnz > 0 else 0.0
