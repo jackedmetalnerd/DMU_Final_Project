@@ -43,6 +43,7 @@ There is no build system, package manager, or test framework. Dependencies: `num
 |------|------|
 | `project_mdp.py` | Original monolithic implementation — ground truth reference |
 | `state.py` | `State` class — immutable game state with game-logic predicates (`is_win`, `is_loss`, `winner`, `terminal_value`) |
+| `transition.py` | `TransitionModel` class — all transition logic; exposes `transition(s,a)`, `sample(s,a)`, `build_matrices()` |
 | `game_env.py` | OOP refactor: `GameEnv` class, the canonical environment interface |
 | `reward.py` | `Reward` class — reward functions and active selector |
 | `policies.py` | Fixed P2 opponent policies (`alternating_training`, `alternating_training_attack`) |
@@ -63,15 +64,22 @@ Solver(env).solve()           # ValueIteration / QLearning.train() / MCTSSolver
 env.simulate(π_star, label)   # Evaluate policy
 ```
 
-### Transition Matrix Design
+### TransitionModel (`transition.py`)
 
-`GameEnv` precomputes scipy sparse CSR matrices for all 6 actions (P1+P2 combined). P2's policy is baked in by selecting only P2's chosen actions per state (`_apply_P2_policy`), reducing the 2-player game to a 1-player MDP. The full transition is a chain:
+All transition logic lives in `TransitionModel`, which `GameEnv` instantiates as `env._model`. Two public interfaces:
 
+- **`transition(s, a) -> dict[State, float]`** — returns next-state distribution for one (state, action) pair without using precomputed matrices. Implements the full P1-action → P2-action → resource-update chain directly. Used by QL and MCTS for episode rollouts.
+- **`sample(s, a) -> State`** — samples one next state from `transition(s, a)`. Used by `GameEnv.act()`, `GameEnv.simulate()`, and MCTS internally.
+- **`build_matrices() -> None`** — precomputes scipy sparse CSR matrices for all 3 P1 actions. Expensive (several minutes). Called once in `GameEnv.__init__()`. Only needed by VI for `T[a] @ V` matrix-vector products.
+
+Combat outcomes (binomial losses for both sides) are precomputed in a 121-entry lookup dict at construction time — fast enough to always build, and needed by both `transition()` and `build_matrices()`.
+
+The combined transition matrix chain is:
 ```
 T_combined[a] = T_base[a] @ T_P2 @ T_resource
 ```
 
-This means that any change to the opponent policy requires calling `env.update_P2_policy(π_P2_new)` and rebuilding these matrices.
+Any P2 policy change requires calling `env.update_P2_policy(π_P2_new)`, which rebuilds `T_P2` and recomposes `T`.
 
 ### State Class (`state.py`)
 

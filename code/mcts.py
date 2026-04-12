@@ -1,5 +1,4 @@
 import random
-import numpy as np
 from math import sqrt, log
 from game_env import GameEnv
 from state import State
@@ -49,24 +48,20 @@ class MCTSSolver:
         env = self.env
         r_total, t = 0.0, 0
         while t < max_steps:
-            s_idx = env.S_index[s]
-            r_total += (env.γ ** t) * env.R[s_idx]
+            r_total += (env.γ ** t) * env.reward.evaluate(s)
             if s.terminal:
                 break
             valid = [a for a in env.A if env.valid_act(a, s)]
             a = random.choice(valid)
-            row = env.T[a].getrow(s_idx)
-            probs = row.data / row.data.sum()
-            s = env.S[random.choices(list(row.indices), weights=probs, k=1)[0]]
+            s = env._model.sample(s, a)
             t += 1
         return r_total
 
     def _run(self, s, depth):
         env = self.env
-        s_idx = env.S_index[s]
 
         if depth <= 0 or s.terminal:
-            return env.R[s_idx]
+            return env.reward.evaluate(s)
 
         if (s, env.A[0]) not in self.n:
             for a in [a for a in env.A if env.valid_act(a, s)]:
@@ -75,12 +70,9 @@ class MCTSSolver:
             return self._rollout(s, depth)
 
         a = self._ucb_action(s)
-        row = env.T[a].getrow(s_idx)
-        probs = row.data / row.data.sum()
-        sp_idx = random.choices(list(row.indices), weights=probs, k=1)[0]
-        sp = env.S[sp_idx]
+        sp = env._model.sample(s, a)
 
-        q_it = env.R[s_idx] + env.γ * self._run(sp, depth - 1)
+        q_it = env.reward.evaluate(s) + env.γ * self._run(sp, depth - 1)
         self.n[(s, a)] += 1
         self.q[(s, a)] += (q_it - self.q[(s, a)]) / self.n[(s, a)]
         key = (s, a, sp)
@@ -118,10 +110,7 @@ class MCTSSolver:
                   f"({s.W1:02d},{s.M1:02d},{s.R1:02d} | "
                   f"{s.W2:02d},{s.M2:02d},{s.R2:02d} | {s.terminal})")
 
-            s_idx = env.S_index[s]
-            row = env.T[a1].getrow(s_idx)
-            probs = row.data / row.data.sum()
-            s = env.S[np.random.choice(row.indices, p=probs)]
+            s = env._model.sample(s, a1)
 
         print('\nGame Over! Draw - maximum turns reached\n')
 
