@@ -67,12 +67,16 @@ class Reward:
 
     def __init__(self, fn=None):
         self._fn = fn if fn is not None else Reward.ACTIVE
+        self._vector_cache = None
 
     def evaluate(self, s) -> float:
         return self._fn(s)
 
     def build_vector(self, states) -> np.ndarray:
-        return np.array([self._fn(s) for s in states])
+        """Return reward vector for all states. Result is cached after first call."""
+        if self._vector_cache is None:
+            self._vector_cache = np.array([self._fn(s) for s in states])
+        return self._vector_cache
 
     @property
     def name(self) -> str:
