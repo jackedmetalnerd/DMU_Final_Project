@@ -146,8 +146,8 @@ Q_orig = orig_eps[-1][1]
 π_Q_orig = lambda s: max(orig_sim['A'], key=lambda a: Q_orig[(s, a)])
 
 print("\n[OOP Q-learning]")
-ql = QLearning(env, γ=0.95, α=0.1, ϵ_start=0.2, ϵ_min=0.05)
-ql.train(n_episodes=500)
+ql = QLearning(env, gamma=0.95, alpha=0.1, epsilon_start=0.2, epsilon_min=0.05)
+ql.solve(n_episodes=500)
 
 np.random.seed(99)
 wr_q_orig = sum(
