@@ -21,7 +21,7 @@ class GameEnv:
         else:
             self.reward = Reward(fn=reward)
 
-        self.S = self._build_state_space()
+        self.S = State.build_space()
         self.S_index = {s: i for i, s in enumerate(self.S)}
         self._model = TransitionModel(self.S, self.S_index, π_P2)
         self.A = self._model.ACTIONS_P1
@@ -90,19 +90,4 @@ class GameEnv:
 
         print('\nGame Over! Draw - maximum turns reached\n')
 
-    # ------------------------------------------------------------------
-    # Internal builders
-    # ------------------------------------------------------------------
-
-    def _build_state_space(self):
-        return [
-            State(W1, M1, R1, W2, M2, R2, terminal)
-            for W1 in range(0, 11)
-            for M1 in range(0, 11)
-            for R1 in range(0, 11)
-            for W2 in range(0, 11)
-            for M2 in range(0, 11)
-            for R2 in range(0, 11)
-            for terminal in range(0, 2)
-        ]
 

@@ -80,3 +80,17 @@ class State:
     def __repr__(self) -> str:
         return (f"State(W1={self.W1}, M1={self.M1}, R1={self.R1}, "
                 f"W2={self.W2}, M2={self.M2}, R2={self.R2}, terminal={self.terminal})")
+
+    # ── State space builder ───────────────────────────────────────────────────
+
+    @classmethod
+    def build_space(cls) -> list:
+        """Return the full enumerated state space (all valid field combinations).
+        Each variable ∈ [0, 10], terminal ∈ {0, 1} → 11^6 × 2 = 3,543,122 states.
+        """
+        return [
+            cls(W1, M1, R1, W2, M2, R2, terminal)
+            for W1 in range(11) for M1 in range(11) for R1 in range(11)
+            for W2 in range(11) for M2 in range(11) for R2 in range(11)
+            for terminal in range(2)
+        ]
