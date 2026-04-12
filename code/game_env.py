@@ -5,10 +5,6 @@ from transition import TransitionModel
 class GameEnv:
     """MDP environment for the two-player resource-and-combat game."""
 
-    ACTIONS_P1 = ['P1_train_workers', 'P1_train_marines', 'P1_attack']
-    ACTIONS_ALL = ['P1_train_workers', 'P1_train_marines', 'P1_attack',
-                   'P2_train_workers', 'P2_train_marines', 'P2_attack']
-
     S_INIT = State(W1=1, M1=1, R1=1, W2=1, M2=1, R2=1, terminal=0)
 
     def __init__(self, π_P2, s_init=S_INIT, γ=0.95, reward=None):
@@ -27,9 +23,8 @@ class GameEnv:
 
         self.S = self._build_state_space()
         self.S_index = {s: i for i, s in enumerate(self.S)}
-        self.A = self.ACTIONS_P1
-
         self._model = TransitionModel(self.S, self.S_index, π_P2)
+        self.A = self._model.ACTIONS_P1
         self._R = None  # built lazily on first access via env.R
 
     @property
@@ -42,22 +37,8 @@ class GameEnv:
             self._R = self.reward.build_vector(self.S)
         return self._R
 
-    # ------------------------------------------------------------------
-    # State / action helpers
-    # ------------------------------------------------------------------
-
-    def valid_act(self, a, s):
-        if s.terminal:
-            return False
-        if a == 'P1_train_workers':
-            return s.R1 > 0 and s.W1 < 10
-        if a == 'P1_train_marines':
-            return s.R1 > 0 and s.M1 < 10
-        if a == 'P2_train_workers':
-            return s.R2 > 0 and s.W2 < 10
-        if a == 'P2_train_marines':
-            return s.R2 > 0 and s.M2 < 10
-        return True  # attacks always valid
+    def valid_act(self, a, s) -> bool:
+        return self._model.valid_act(a, s)
 
     # ------------------------------------------------------------------
     # RL interface
@@ -125,6 +106,3 @@ class GameEnv:
             for terminal in range(0, 2)
         ]
 
-    @property
-    def reward_fn_name(self):
-        return self.reward.name

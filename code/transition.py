@@ -100,6 +100,20 @@ class TransitionModel:
             self.T = {a: self._T_base[a] @ self._T_P2 @ self._T_res
                       for a in self.ACTIONS_P1}
 
+    def valid_act(self, a, s) -> bool:
+        """Return True if action a is available from state s."""
+        if s.terminal:
+            return False
+        if a == 'P1_train_workers':
+            return s.R1 > 0 and s.W1 < 10
+        if a == 'P1_train_marines':
+            return s.R1 > 0 and s.M1 < 10
+        if a == 'P2_train_workers':
+            return s.R2 > 0 and s.W2 < 10
+        if a == 'P2_train_marines':
+            return s.R2 > 0 and s.M2 < 10
+        return True  # attacks always valid
+
     def __getitem__(self, action: str):
         if not self.T:
             raise RuntimeError("Call build_matrices() before accessing T[action].")
