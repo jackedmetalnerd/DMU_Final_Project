@@ -73,7 +73,8 @@ V_orig = vi_orig(orig_sim)
 
 print("\n[OOP VI]")
 solver = ValueIteration(env)
-V_oop, π_oop = solver.solve()
+π_oop = solver.solve()
+V_oop = solver.V
 
 max_diff = np.max(np.abs(V_orig - V_oop))
 ok = max_diff < 1e-6
@@ -146,8 +147,8 @@ Q_orig = orig_eps[-1][1]
 π_Q_orig = lambda s: max(orig_sim['A'], key=lambda a: Q_orig[(s, a)])
 
 print("\n[OOP Q-learning]")
-ql = QLearning(env, γ=0.95, α=0.1, ϵ_start=0.2, ϵ_min=0.05)
-ql.train(n_episodes=500)
+ql = QLearning(env, gamma=0.95, alpha=0.1, epsilon_start=0.2, epsilon_min=0.05)
+ql.solve(n_episodes=500)
 
 np.random.seed(99)
 wr_q_orig = sum(

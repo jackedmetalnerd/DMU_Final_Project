@@ -4,19 +4,20 @@ from tqdm import tqdm
 from game_env import GameEnv
 from state import State
 from policy import DictPolicy
+from solver import Solver
 from policies import alternating_training_attack, P2_policy_converter
 
 
-class ValueIteration:
+class ValueIteration(Solver):
     """Solves a GameEnv with value iteration and extracts a greedy policy."""
 
     def __init__(self, env: GameEnv, tol=1e-9):
-        self.env = env
+        super().__init__(env)
         self.tol = tol
         self.V = None
-        self.π = None
+        self.policy = None
 
-    def solve(self):
+    def solve(self) -> DictPolicy:
         if not self.env.transition_model.T:
             self.env.transition_model.build_matrices()
         S, A, T, R, γ = self.env.S, self.env.A, self.env.T, self.env.R, self.env.γ
@@ -47,10 +48,10 @@ class ValueIteration:
                 break
 
         self.V = V
-        self.π = self._greedy(V)
-        return self.V, self.π
+        self.policy = self._greedy(V)
+        return self.policy
 
-    def _greedy(self, V):
+    def _greedy(self, V) -> DictPolicy:
         S, A, T, R, γ = self.env.S, self.env.A, self.env.T, self.env.R, self.env.γ
         Q = np.array([R + γ * (T[a] @ V) for a in A])
         best = np.argmax(Q, axis=0)
@@ -64,7 +65,7 @@ if __name__ == '__main__':
 
     solver = ValueIteration(env)
     print("Running value iteration...")
-    V, π_star = solver.solve()
+    π_star = solver.solve()
     print("Done.")
 
     for _ in range(5):

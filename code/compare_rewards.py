@@ -63,18 +63,17 @@ def measure_win_rate(env, policy_fn, n_games=50, seed=42):
 def run_vi(env):
     solver = ValueIteration(env)
     print(f"    [VI] solving...")
-    V, π = solver.solve()
-    return lambda s: π[s]
+    π = solver.solve()
+    return π
 
 def run_ql(env, n_episodes=2000):
-    agent = QLearning(env, γ=0.95, α=0.1, ϵ_start=0.2, ϵ_min=0.05)
+    agent = QLearning(env, gamma=0.95, alpha=0.1, epsilon_start=0.2, epsilon_min=0.05)
     print(f"    [QL] training {n_episodes} episodes...")
-    agent.train(n_episodes=n_episodes)
-    return agent.policy
+    return agent.solve(n_episodes=n_episodes)
 
 def run_mcts(env, num_runs=1000):
     agent = MCTSSolver(env, c=sqrt(2), depth=50, num_runs=num_runs)
-    return agent.get_action
+    return agent.solve()
 
 # ── Main comparison loop ───────────────────────────────────────────────────────
 
