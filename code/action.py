@@ -45,6 +45,9 @@ class Action:
             return str(self) == other  # Action('P1','attack') == 'P1_attack'
         return NotImplemented
 
+    def __format__(self, format_spec: str) -> str:
+        return format(str(self), format_spec)
+
     def __hash__(self) -> int:
         # Same hash as the equivalent string so Action objects work as drop-in
         # dict keys in tables built with string keys (policies, Q-tables, etc.)

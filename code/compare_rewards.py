@@ -23,6 +23,7 @@ from reward import Reward
 from value_iteration import ValueIteration
 from q_learning import QLearning
 from mcts import MCTSSolver
+from dqn import DQNSolver
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
@@ -75,9 +76,14 @@ def run_mcts(env, num_runs=1000):
     agent = MCTSSolver(env, c=sqrt(2), depth=50, num_runs=num_runs)
     return agent.solve()
 
+def run_dqn(env, n_episodes=2000):
+    agent = DQNSolver(env)
+    print(f"    [DQN] training {n_episodes} episodes...")
+    return agent.solve(n_episodes=n_episodes)
+
 # ── Main comparison loop ───────────────────────────────────────────────────────
 
-def compare(solvers_to_run, reward_fns, n_games, ql_episodes, mcts_runs):
+def compare(solvers_to_run, reward_fns, n_games, ql_episodes, mcts_runs, dqn_episodes=2000):
     results = {}
 
     for rf_fn in reward_fns:
@@ -108,12 +114,18 @@ def compare(solvers_to_run, reward_fns, n_games, ql_episodes, mcts_runs):
             results[(rf_name, 'mcts')] = (wr, lr, dr)
             print(f"    [MCTS] win={wr:.1%}  loss={lr:.1%}  draw={dr:.1%}")
 
+        if 'dqn' in solvers_to_run:
+            policy = run_dqn(env, n_episodes=dqn_episodes)
+            wr, lr, dr = measure_win_rate(env, policy, n_games=n_games)
+            results[(rf_name, 'dqn')] = (wr, lr, dr)
+            print(f"    [DQN]  win={wr:.1%}  loss={lr:.1%}  draw={dr:.1%}")
+
     return results
 
 def print_summary(results, solvers_to_run, reward_fns):
     rf_names = [f.__name__ for f in reward_fns]
     col_w = max(len(n) for n in rf_names) + 2
-    solver_labels = {'vi': 'VI', 'ql': 'QL', 'mcts': 'MCTS'}
+    solver_labels = {'vi': 'VI', 'ql': 'QL', 'mcts': 'MCTS', 'dqn': 'DQN'}
 
     print(f"\n{'='*60}")
     print("WIN RATE SUMMARY")
@@ -134,8 +146,8 @@ def print_summary(results, solvers_to_run, reward_fns):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Compare reward functions across solvers')
     parser.add_argument('--solver', nargs='+', default=['vi', 'ql', 'mcts'],
-                        choices=['vi', 'ql', 'mcts'], metavar='SOLVER',
-                        help='Solvers to run: vi, ql, mcts (default: all)')
+                        choices=['vi', 'ql', 'mcts', 'dqn'], metavar='SOLVER',
+                        help='Solvers to run: vi, ql, mcts, dqn (default: vi ql mcts)')
     parser.add_argument('--rf', nargs='+', default=None, metavar='NAME',
                         help='Reward function names to test (default: all)')
     parser.add_argument('--games', type=int, default=50,
@@ -144,6 +156,8 @@ if __name__ == '__main__':
                         help='Q-learning training episodes (default: 2000)')
     parser.add_argument('--mcts-runs', type=int, default=1000,
                         help='MCTS rollouts per move (default: 1000)')
+    parser.add_argument('--dqn-episodes', type=int, default=2000,
+                        help='DQN training episodes (default: 2000)')
     args = parser.parse_args()
 
     rf_map = {f.__name__: f for f in ALL_REWARD_FNS}
@@ -163,5 +177,6 @@ if __name__ == '__main__':
         n_games=args.games,
         ql_episodes=args.ql_episodes,
         mcts_runs=args.mcts_runs,
+        dqn_episodes=args.dqn_episodes,
     )
     print_summary(results, args.solver, selected_rfs)
