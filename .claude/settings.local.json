@@ -3,7 +3,11 @@
     "allow": [
       "Bash(git config:*)",
       "Bash(python validate.py)",
-      "Bash(pip install:*)"
+      "Bash(pip install:*)",
+      "Bash(python -c ':*)",
+      "Bash(python -c \"import compare_rewards; print\\('compare_rewards.py imports OK'\\)\")",
+      "Bash(python compare_rewards.py --solver vi --rf terminal_only --games 10)",
+      "Bash(python3:*)"
     ]
   }
 }

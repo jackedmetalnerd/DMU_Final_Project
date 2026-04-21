@@ -5,6 +5,11 @@ paths:
   - "src/**/*.h"
 ---
 
+## Ground Truth Reference
+
+`project_mdp.py` is the original monolithic implementation and must never be modified.
+It is the reference used by `validate.py` to verify all other implementations.
+
 ## MDP Numerical Conventions
 
 - Transition matrix comparisons: tolerance 1e-10
@@ -17,7 +22,7 @@ paths:
 State is always a 7-tuple `(W1, M1, R1, W2, M2, R2, terminal)`:
 - W: workers, M: marines, R: resources — each ∈ [0, 10]
 - terminal ∈ {0, 1}
-- Total states: ~332,640
+- Total states: 11^6 × 2 = 3,543,122 (11 values each for 6 vars, × 2 for terminal flag)
 
 ## Transition Matrix Format
 
