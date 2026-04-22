@@ -13,16 +13,10 @@ JointTransitionModel directly and defines separate reward functions for each
 player by exploiting the game's symmetry (R2 = invert-state then apply R1).
 
 Key methods:
-  step(a1, a2)            -- advance game state, return (r1, r2)
-  as_p1_gameenv(p2_policy) -- 1-player GameEnv view for P1's MCTS
-  as_p2_gameenv(p1_policy) -- 1-player GameEnv view for P2's MCTS (inverted state)
+  step(a1, a2)             -- advance game state, return (r1, r2)
+  reward_p1(s) / reward_p2(s) -- per-player rewards
+  as_p1_gameenv(p2_policy) -- 1-player GameEnv view for single-agent solvers
   simulate(p1_policy, p2_policy) -- full game trace with joint transitions
-
-The as_p2_gameenv inversion:
-  MCTSSolver always plans for "P1" (uses Action.P1_ACTIONS, P1-perspective reward).
-  To plan for P2, we invert the state (swap W1/M1/R1 ↔ W2/M2/R2) so P2's data
-  occupies the P1 slots. The opponent policy in that inverted env is P1's real
-  policy, wrapped in SymmetricPolicy to handle the state/action relabeling.
 """
 
 from state import State
@@ -30,7 +24,6 @@ from action import Action
 from reward import Reward
 from joint_transition import JointTransitionModel
 from game_env import GameEnv
-from policy import SymmetricPolicy
 
 
 class MarkovGameEnv:
@@ -40,6 +33,8 @@ class MarkovGameEnv:
     ----------
     initial_state : State
         Starting state (default: symmetric 1W/1M/1R for each player).
+    gamma : float
+        Discount factor. Used by solvers operating on this environment.
     reward : Reward, optional
         Reward function from P1's perspective. P2's reward is derived by
         state inversion. Defaults to Reward() which uses ACTIVE reward fn.
@@ -47,12 +42,14 @@ class MarkovGameEnv:
 
     S_INIT = State(W1=1, M1=1, R1=1, W2=1, M2=1, R2=1, terminal=0)
 
-    def __init__(self, initial_state: State = S_INIT, reward: Reward = None):
+    def __init__(self, initial_state: State = S_INIT, gamma: float = 0.95,
+                 reward: Reward = None):
         states = State.build_space()
         state_index = {s: i for i, s in enumerate(states)}
         self.joint_model = JointTransitionModel(states, state_index)
         self.initial_state = initial_state
         self.state = initial_state
+        self.gamma = gamma
         self._reward = reward if reward is not None else Reward()
 
     # ── Reward ────────────────────────────────────────────────────────────────
@@ -64,8 +61,8 @@ class MarkovGameEnv:
     def reward_p2(self, s: State) -> float:
         """P2's reward at state s, derived by state inversion.
 
-        Swaps W1↔W2, M1↔M2, R1↔R2, then evaluates the same reward function.
-        In the terminal-only reward case this gives +1 when P2 wins, -1 when P1 wins.
+        Swaps W1↔W2, M1↔M2, R1↔R2 then evaluates the same reward function.
+        Gives +1 when P2 wins, -1 when P1 wins (zero-sum symmetric game).
         """
         s_inv = State(W1=s.W2, M1=s.M2, R1=s.R2,
                       W2=s.W1, M2=s.M1, R2=s.R1,
@@ -96,46 +93,18 @@ class MarkovGameEnv:
         """Reset to the initial state."""
         self.state = self.initial_state
 
-    # ── Single-player GameEnv factories ──────────────────────────────────────
+    # ── Single-player GameEnv factory ─────────────────────────────────────────
 
     def as_p1_gameenv(self, p2_policy) -> GameEnv:
-        """Create a 1-player GameEnv for P1's MCTS with P2's policy fixed.
+        """Create a 1-player GameEnv for P1 with P2's policy fixed.
 
-        P1 is the protagonist; MCTS uses Action.P1_ACTIONS and standard state.
-        p2_policy must accept a real (non-inverted) State and return a P2 Action.
+        Useful for running single-agent solvers (VI, QL, MCTSSolver) from P1's
+        perspective against a known opponent. p2_policy must accept a real State
+        and return a P2-labeled Action.
         """
         return GameEnv(
             opponent_policy=p2_policy,
             initial_state=self.initial_state,
-            reward=self._reward,
-        )
-
-    def as_p2_gameenv(self, p1_policy) -> GameEnv:
-        """Create a 1-player GameEnv for P2's MCTS with P1's policy fixed.
-
-        Since MCTSSolver always plans for "P1", we make P2 appear as P1 by
-        inverting the state: W1↔W2, M1↔M2, R1↔R2. In the inverted env:
-          - The "P1 slot" contains P2's resources (MCTS plans P2's moves)
-          - The "P2 slot" (opponent) contains P1's resources
-          - SymmetricPolicy(p1_policy) adapts p1_policy for the inverted state:
-              1. Receives s_inv (P2's data in P1 slots)
-              2. Reinverts to get the real state
-              3. Calls p1_policy(s_real) -> P1 action
-              4. Maps P1 action to P2 equivalent (for the inverted env's opponent)
-
-        p1_policy must accept a real (non-inverted) State and return a P1 Action.
-
-        The reward function evaluates the inverted state, correctly computing
-        advantage from P2's perspective (P2's data is in the P1 slot).
-        """
-        inverted_initial = State(
-            W1=self.initial_state.W2, M1=self.initial_state.M2, R1=self.initial_state.R2,
-            W2=self.initial_state.W1, M2=self.initial_state.M1, R2=self.initial_state.R1,
-            terminal=self.initial_state.terminal,
-        )
-        return GameEnv(
-            opponent_policy=SymmetricPolicy(p1_policy),
-            initial_state=inverted_initial,
             reward=self._reward,
         )
 
@@ -178,6 +147,5 @@ class MarkovGameEnv:
 
             s = self.joint_model.joint_sample(s, a1, a2)
 
-        winner = s.winner() if s.terminal else 'Draw'
         print(f"\nGame Over! Draw - maximum turns reached\n")
         return 'Draw'

@@ -105,37 +105,6 @@ def test_as_p1_gameenv_initial_state():
     print("PASS test_as_p1_gameenv_initial_state")
 
 
-def test_as_p2_gameenv_returns_gameenv():
-    """as_p2_gameenv() should return a GameEnv instance."""
-    from markov_game import _p2_policy_to_p1
-    from policies import alternating_training_attack
-    env = MarkovGameEnv()
-    p1_estimate = _p2_policy_to_p1(alternating_training_attack)
-    p2_env = env.as_p2_gameenv(p1_estimate)
-    assert isinstance(p2_env, GameEnv), f"Expected GameEnv, got {type(p2_env)}"
-    print("PASS test_as_p2_gameenv_returns_gameenv")
-
-
-def test_as_p2_gameenv_inverted_initial_state():
-    """as_p2_gameenv() should swap W1/M1/R1 and W2/M2/R2 in the initial state."""
-    from markov_game import _p2_policy_to_p1
-    from policies import alternating_training_attack
-    env = MarkovGameEnv()
-    p1_estimate = _p2_policy_to_p1(alternating_training_attack)
-    p2_env = env.as_p2_gameenv(p1_estimate)
-    init = env.initial_state
-    inv  = p2_env.initial_state
-    assert inv.W1 == init.W2 and inv.M1 == init.M2 and inv.R1 == init.R2, (
-        f"Expected W1={init.W2},M1={init.M2},R1={init.R2} in inverted env, "
-        f"got W1={inv.W1},M1={inv.M1},R1={inv.R1}"
-    )
-    assert inv.W2 == init.W1 and inv.M2 == init.M1 and inv.R2 == init.R1, (
-        f"Expected W2={init.W1},M2={init.M1},R2={init.R1} in inverted env, "
-        f"got W2={inv.W2},M2={inv.M2},R2={inv.R2}"
-    )
-    print("PASS test_as_p2_gameenv_inverted_initial_state")
-
-
 if __name__ == '__main__':
     test_step_returns_floats()
     test_step_advances_state()
@@ -146,6 +115,4 @@ if __name__ == '__main__':
     test_reward_p2_p2_win()
     test_as_p1_gameenv_returns_gameenv()
     test_as_p1_gameenv_initial_state()
-    test_as_p2_gameenv_returns_gameenv()
-    test_as_p2_gameenv_inverted_initial_state()
     print("\nAll MarkovGameEnv tests passed.")

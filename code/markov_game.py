@@ -3,10 +3,11 @@ markov_game.py
 ==============
 Dual-MCTS Alternating Best Response solver for MarkovGameEnv.
 
-Implements Alternating Best Response (ABR) using MCTS as the best-response
-oracle. Each game, P1 and P2 independently run MCTS against the other player's
-policy estimate from the previous game. After each game the estimates update to
-the solved MCTS policies.
+Implements Alternating Best Response (ABR) using MarkovGameMCTSSolver as the
+best-response oracle. Each game, P1 and P2 independently run MCTS against
+the other player's policy estimate from the previous game. After each game the
+estimates update to greedy policies derived from the MCTS Q-tables (O(1) lookup,
+no nested MCTS calls during opponent rollouts).
 
 This is one of several methods for solving Markov (stochastic) games:
 
@@ -22,79 +23,24 @@ This is one of several methods for solving Markov (stochastic) games:
                             | than Nash but weaker for zero-sum games.
   Multi-Agent DQN           | Independent DQN agents; non-stationary but
                             | practical for large state spaces.
-
-The ABR loop here uses the existing MCTSSolver unchanged. Each player's MCTS
-runs on a single-player GameEnv view (as_p1_gameenv / as_p2_gameenv) with the
-opponent's current policy frozen.
-
-Helper functions:
-  _p2_policy_to_p1(p2_policy)          -- convert P2-labeled policy to P1-labeled
-  _inverted_mcts_to_p2_policy(solver)  -- wrap P2's MCTS (inverted env) as P2 policy
 """
 
 from math import sqrt
-from state import State
 from action import Action
-from policy import MCTSPolicy
 from markov_game_env import MarkovGameEnv
-from mcts import MCTSSolver
+from markov_game_mcts import MarkovGameMCTSSolver
 from policies import alternating_training_attack
 
 
-# ── Policy conversion helpers ─────────────────────────────────────────────────
+# ── Default bootstrap policies ────────────────────────────────────────────────
 
-def _p2_policy_to_p1(p2_policy):
-    """Convert a P2-labeled policy to a P1-labeled policy via state inversion.
-
-    Used to bootstrap p1_estimate from a hand-coded P2 policy such as
-    alternating_training_attack.
-
-    Takes a real State, returns a P1-labeled Action by:
-      1. Inverting state (W1↔W2, M1↔M2, R1↔R2)
-      2. Calling p2_policy on the inverted state -> P2 action
-      3. Remapping P2 action label to P1 equivalent
-    """
-    _P2_TO_P1 = {
-        Action.P2_TRAIN_WORKERS: Action.P1_TRAIN_WORKERS,
-        Action.P2_TRAIN_MARINES: Action.P1_TRAIN_MARINES,
-        Action.P2_ATTACK:        Action.P1_ATTACK,
-    }
-
-    def p1_policy(s: State) -> Action:
-        s_inv = State(W1=s.W2, M1=s.M2, R1=s.R2,
-                      W2=s.W1, M2=s.M1, R2=s.R1, terminal=s.terminal)
-        a2 = p2_policy(s_inv)
-        return _P2_TO_P1[a2]
-
-    return p1_policy
-
-
-def _inverted_mcts_to_p2_policy(p2_mcts_solver):
-    """Wrap P2's MCTSSolver (trained on an inverted GameEnv) as a P2-labeled policy.
-
-    P2's MCTSSolver was built on an inverted GameEnv (P2 in P1 slots), so
-    get_action() expects an inverted State and returns a P1-labeled Action.
-    This wrapper handles the inversion/relabeling so callers can query it with
-    a real State and receive a P2-labeled Action.
-
-    Steps:
-      1. Invert the real state (W1↔W2, M1↔M2, R1↔R2)
-      2. Call p2_mcts_solver.get_action(s_inv) -> P1-labeled Action
-      3. Remap P1 label to P2 equivalent
-    """
-    _P1_TO_P2 = {
-        Action.P1_TRAIN_WORKERS: Action.P2_TRAIN_WORKERS,
-        Action.P1_TRAIN_MARINES: Action.P2_TRAIN_MARINES,
-        Action.P1_ATTACK:        Action.P2_ATTACK,
-    }
-
-    def p2_policy(s: State) -> Action:
-        s_inv = State(W1=s.W2, M1=s.M2, R1=s.R2,
-                      W2=s.W1, M2=s.M1, R2=s.R1, terminal=s.terminal)
-        a1 = p2_mcts_solver.get_action(s_inv)
-        return _P1_TO_P2[a1]
-
-    return p2_policy
+def _default_p1_policy(s):
+    """P1 mirror of alternating_training_attack: train to max then attack."""
+    if s.M1 == 10 and s.W1 == 10:
+        return Action.P1_ATTACK
+    if s.W1 < s.M1:
+        return Action.P1_TRAIN_WORKERS
+    return Action.P1_TRAIN_MARINES
 
 
 # ── MarkovGameSolver ──────────────────────────────────────────────────────────
@@ -103,14 +49,14 @@ class MarkovGameSolver:
     """Dual-MCTS Alternating Best Response solver for MarkovGameEnv.
 
     Each game:
-      1. P1 runs MCTS on as_p1_gameenv(p2_estimate) -- best response to P2's policy
-      2. P2 runs MCTS on as_p2_gameenv(p1_estimate) -- best response to P1's policy
-      3. Simulate the game using both MCTS policies and joint transitions
-      4. Update p1_estimate = MCTSPolicy(p1_mcts)
-               p2_estimate = _inverted_mcts_to_p2_policy(p2_mcts)
+      1. p1_mcts = MarkovGameMCTSSolver(env, 'P1', opponent_policy=p2_estimate)
+      2. p2_mcts = MarkovGameMCTSSolver(env, 'P2', opponent_policy=p1_estimate)
+      3. Simulate using env.simulate(p1_mcts.get_action, p2_mcts.get_action)
+      4. Update estimates to greedy policies from each solver's Q-table
 
-    Fresh MCTSSolver objects are created each game. The frozen policy closures
-    from the previous game carry forward as opponent estimates for the next game.
+    Policy estimates are greedy lookups into the previous game's Q-table (O(1)
+    per call), not full MCTS re-runs, so they're safe to use as opponent policies
+    inside subsequent MCTS rollouts.
 
     Parameters
     ----------
@@ -144,20 +90,20 @@ class MarkovGameSolver:
         Parameters
         ----------
         p1_estimate : callable(State) -> P1 Action, optional
-            Initial estimate of P1's policy (used by P2's MCTS as opponent).
-            Defaults to the symmetric mirror of alternating_training_attack.
+            Initial estimate of P1's policy (used as P2's opponent in MCTS).
+            Defaults to _default_p1_policy.
         p2_estimate : callable(State) -> P2 Action, optional
-            Initial estimate of P2's policy (used by P1's MCTS as opponent).
+            Initial estimate of P2's policy (used as P1's opponent in MCTS).
             Defaults to alternating_training_attack.
 
         Returns
         -------
         list[str] : winner of each game ('P1', 'P2', or 'Draw')
         """
+        if p1_estimate is None:
+            p1_estimate = _default_p1_policy
         if p2_estimate is None:
             p2_estimate = alternating_training_attack
-        if p1_estimate is None:
-            p1_estimate = _p2_policy_to_p1(alternating_training_attack)
 
         results = []
 
@@ -167,47 +113,27 @@ class MarkovGameSolver:
             print(f"  P1 MCTS vs P2 MCTS (Alternating Best Response)")
             print(f"{'=' * 70}")
 
-            # Build per-game single-player envs for each MCTS solver
-            p1_env = self.env.as_p1_gameenv(p2_estimate)
-            p2_env = self.env.as_p2_gameenv(p1_estimate)
-
-            # Create fresh MCTS solvers for this game
-            p1_mcts = MCTSSolver(
-                p1_env,
-                c=self.mcts_c,
-                depth=self.mcts_depth,
-                num_runs=self.mcts_runs,
+            # Each player's MCTS plans against the opponent's current estimate
+            p1_mcts = MarkovGameMCTSSolver(
+                self.env, player='P1', opponent_policy=p2_estimate,
+                c=self.mcts_c, depth=self.mcts_depth, num_runs=self.mcts_runs,
             )
-            p2_mcts = MCTSSolver(
-                p2_env,
-                c=self.mcts_c,
-                depth=self.mcts_depth,
-                num_runs=self.mcts_runs,
+            p2_mcts = MarkovGameMCTSSolver(
+                self.env, player='P2', opponent_policy=p1_estimate,
+                c=self.mcts_c, depth=self.mcts_depth, num_runs=self.mcts_runs,
             )
 
-            # Build callable policies for the joint simulation
-            # P1: direct MCTS queries on real states (P1-labeled actions)
-            def p1_policy(s: State, solver=p1_mcts) -> Action:
-                return solver.get_action(s)
-
-            # P2: MCTS on inverted env, wrapped to return P2-labeled actions
-            p2_policy = _inverted_mcts_to_p2_policy(p2_mcts)
-
-            # Simulate using joint transitions (env.simulate handles the trace)
             winner = self.env.simulate(
-                p1_policy=p1_policy,
-                p2_policy=p2_policy,
+                p1_policy=p1_mcts.get_action,
+                p2_policy=p2_mcts.get_action,
                 max_turns=self.max_turns,
             )
             results.append(winner)
 
-            # Update policy estimates for the next game:
-            # P1's estimate: MCTSPolicy wraps the solver (direct callable on real states)
-            p1_estimate = MCTSPolicy(p1_mcts)
-            # P2's estimate: inverted MCTS wrapper (handles state inversion + relabeling)
-            p2_estimate = _inverted_mcts_to_p2_policy(p2_mcts)
+            # Update estimates to greedy Q-table lookups (O(1), no nested MCTS)
+            p1_estimate = p1_mcts.get_greedy_policy()
+            p2_estimate = p2_mcts.get_greedy_policy()
 
-        # Summary
         p1_wins = results.count('P1')
         p2_wins = results.count('P2')
         draws   = results.count('Draw')
