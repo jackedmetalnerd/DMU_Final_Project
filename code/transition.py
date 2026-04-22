@@ -113,6 +113,13 @@ class TransitionModel:
         if a == Action.P2_TRAIN_MARINES:
             return s.R2 > 0 and s.M2 < 10
         return True  # attacks always valid
+    
+    def build_uniform_P2(self) -> None:
+        # Replace T_P2 with a uniform mixture over all actions (i.e., stochastic opponent policy)
+        T_P2 = sum(self._T_base[a] for a in [
+            Action.P2_TRAIN_WORKERS, Action.P2_TRAIN_MARINES, Action.P2_ATTACK
+        ]) / 3
+        self.T = {a: self._T_base[a] @ T_P2 @ self._T_res for a in self.ACTIONS_P1}
 
     def __getitem__(self, action):
         if not self.T:
