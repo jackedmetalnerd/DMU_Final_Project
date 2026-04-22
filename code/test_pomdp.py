@@ -1,3 +1,24 @@
+"""
+test_pomdp.py
+=============
+Experiments comparing QMDP solver performance under different POMDP conditions.
+
+Experiments
+-----------
+exp_obs_levels     — sweeps n_obs_levels (1, 2, 4, 11) to show how observation
+                     granularity affects QMDP win rates against a fixed P2 policy
+exp_P2_policy_type — compares QMDP against deterministic vs stochastic P2 policy;
+                     stochastic case uses a uniform-mixture T_P2 via build_uniform_P2()
+exp_model_mismatch — P1 plans using a uniform-random P2 model but simulates against
+                     the true deterministic P2 policy; tests effect of model mismatch
+
+Usage
+-----
+python test_pomdp.py                        # all experiments
+python test_pomdp.py --exp obs              # obs granularity only
+python test_pomdp.py --games 100 --seed 42  # larger sample, different seed
+"""
+
 from state import State
 from pomdp_env import POMDPEnv
 from policies import alternating_training_attack

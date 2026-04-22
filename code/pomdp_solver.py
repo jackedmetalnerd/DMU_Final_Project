@@ -1,3 +1,19 @@
+"""
+pomdp_solver.py
+===============
+QMDP solver for the POMDP extension of the two-player MDP.
+
+QMDP approximates the POMDP value function using the underlying MDP
+solution: Q(b, a) = b @ (R + γ · T[a] · V), where V is the MDP value
+vector from ValueIteration. Effective when uncertainty is low or resolves
+quickly; may underperform when the agent must act to gain information.
+
+Classes
+-------
+QMDPSolver(Solver) — solve() returns a BeliefPolicy; planning is done
+                     via get_action(belief) on each step
+"""
+
 import numpy as np
 from math import sqrt
 from solver import Solver

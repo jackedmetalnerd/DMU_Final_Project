@@ -1,3 +1,21 @@
+"""
+pomdp_env.py
+============
+POMDP environment extending GameEnv with belief-state tracking.
+
+Wraps the underlying MDP with an ObservationModel and maintains a
+probability distribution (belief) over the state space. Belief is
+updated automatically on each act() call using Bayes' rule.
+
+Classes
+-------
+BeliefCollapseError — raised when belief update yields zero probability
+                      for all states consistent with the observation
+POMDPEnv(GameEnv)   — adds observe(), belief_update(), and step() to GameEnv;
+                      observe() returns the current belief vector instead of
+                      the true state
+"""
+
 import numpy as np
 from game_env import GameEnv
 from observation_model import ObservationModel
