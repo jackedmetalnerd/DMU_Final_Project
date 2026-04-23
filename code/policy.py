@@ -12,6 +12,7 @@ SymmetricPolicy — mirrors a P1 Policy to P2 by swapping player fields;
                   replaces the P2_policy_converter() function in policies.py
 MCTSPolicy      — lazy policy that runs MCTS planning on each call
 BeliefPolicy    - wrapper for belief-based policies
+POMCPPolicy     - lazy policy that runs POMCP planning on each call
 
 All concrete policies are callable objects, so they work wherever a plain
 callable is expected (GameEnv, simulate, update_P2_policy, etc.).
@@ -120,3 +121,17 @@ class BeliefPolicy(Policy):
 
     def __call__(self, b: np.ndarray) -> Action:
         return self._solver.get_action(b)
+    
+class POMCPPolicy(Policy):
+    # Lazy belief policy for POMCP - tracks action/obs history
+    def __init__(self, solver):
+        self._solver = solver
+
+    def __call__(self, b: np.ndarray) -> Action:
+        return self._solver.get_action(b)
+    
+    def update(self, a, o): #must be called after each true step to update history
+        self._solver.update(a, o)
+
+    def reset(self):
+        self._solver.reset()

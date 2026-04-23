@@ -1,7 +1,8 @@
 """
 test_pomdp.py
 =============
-Experiments comparing QMDP solver performance under different POMDP conditions.
+Experiments comparing QMDP and POMCP solver performance under different POMDP 
+conditions.
 
 Experiments
 -----------
@@ -11,6 +12,7 @@ exp_P2_policy_type — compares QMDP against deterministic vs stochastic P2 poli
                      stochastic case uses a uniform-mixture T_P2 via build_uniform_P2()
 exp_model_mismatch — P1 plans using a uniform-random P2 model but simulates against
                      the true deterministic P2 policy; tests effect of model mismatch
+                     and compares QMDP to POMCP performance
 
 Usage
 -----
@@ -23,11 +25,12 @@ from state import State
 from pomdp_env import POMDPEnv
 from policies import alternating_training_attack
 from value_iteration import ValueIteration
-from pomdp_solver import QMDPSolver
+from pomdp_solver import QMDPSolver, POMCPSolver
 import numpy as np
 import argparse
 from action import Action
 from policy import FunctionPolicy
+from tqdm import tqdm
 
 S_INIT = State(W1=1, M1=1, R1=1, W2=1, M2=1, R2=1, terminal=0)
 
@@ -35,16 +38,20 @@ P2_ACTIONS = [Action.P2_TRAIN_WORKERS, Action.P2_TRAIN_MARINES, Action.P2_ATTACK
 
 random_P2 = FunctionPolicy(lambda s: np.random.choice(P2_ACTIONS))
 
-def _run_games(env, policy, n_games, step_limit=50): #game simulation helper
+def _run_games(env, policy, n_games, step_limit=50, label=''): #game simulation helper
     wins = losses = draws = 0
-    for _ in range(n_games):
+    for _ in tqdm(range(n_games), desc=label, unit='game'):
         env.reset()
+        if hasattr(policy, 'reset'): #for, e.g., POMCP internal reset
+            policy.reset()
         for _ in range(step_limit):
             if env.observe_raw().terminal:
                 break
             b = env.observe()
             a = policy(b)
             env.act(a)
+            if hasattr(policy, 'update'): #for, e.g., POMCP internal update
+                policy.update(a, env.observe_obs())
         s = env.observe_raw()
         if s.M1 > 0 and s.M2 == 0:
             wins += 1
@@ -79,7 +86,7 @@ def exp_obs_levels(n_games, seed):
         env.transition_model._T_P2 = env_base.transition_model._T_P2
         env.transition_model.T = env_base.transition_model.T
         π = QMDPSolver(env, V=vi.V).solve()
-        wins, losses, draws = _run_games(env, π, n_games)
+        wins, losses, draws = _run_games(env, π, n_games, label=f'Exp 1 - QMDP @ n_obs={n}')
         w, l, d = wins/n_games, losses/n_games, draws/n_games
         print(f"  {labels[n]}win={w:.1%}  loss={l:.1%}  draw={d:.1%}")
 
@@ -95,7 +102,7 @@ def exp_P2_policy_type(n_games, seed):
     vi_det = ValueIteration(env_det)
     vi_det.solve()
     π_det = QMDPSolver(env_det, V=vi_det.V).solve()
-    wins, losses, draws = _run_games(env_det, π_det, n_games)
+    wins, losses, draws = _run_games(env_det, π_det, n_games, label='Exp 2 - Deterministic P2')
     w, l, d = wins/n_games, losses/n_games, draws/n_games
     print(f"  {"Deterministic P2"}  win={w:.1%}  loss={l:.1%}  draw={d:.1%}")
 
@@ -105,38 +112,52 @@ def exp_P2_policy_type(n_games, seed):
     vi_sto.solve()
     env_sto.transition_model.build_uniform_P2()
     π_sto = QMDPSolver(env_sto, V=vi_sto.V).solve()
-    wins, losses, draws = _run_games(env_sto, π_sto, n_games)
+    wins, losses, draws = _run_games(env_sto, π_sto, n_games, label='Exp 2 - Stochastic P2')
     w, l, d = wins/n_games, losses/n_games, draws/n_games
     print(f"  {"Stochastic P2"}  win={w:.1%}  loss={l:.1%}  draw={d:.1%}")
 
 def exp_model_mismatch(n_games, seed):
-    # P1 plans based on wrong P2 policy
+    # P1 plans based on wrong P2 policy; runs on QMDP and POMCP
     print(f"\n{'='*60}")
     print(f"Experiment: Model mismatch (P1 plans on wrong P2 policy)")
     print(f"\n{'='*60}")
     np.random.seed(seed)
 
-    # Baseline: plan=det, real=det
+    # QMDP Baseline: plan=det, real=det
     env_det = POMDPEnv(opponent_policy=alternating_training_attack,
                        initial_state=S_INIT, n_obs_levels=1)
     vi_det = ValueIteration(env_det)
     vi_det.solve()
     π_baseline = QMDPSolver(env_det, V=vi_det.V).solve()
-    wins, losses, draws = _run_games(env_det, π_baseline, n_games)
+    wins, losses, draws = _run_games(env_det, π_baseline, n_games, label='Exp 3 - QMDP Baseline')
     w, l, d = wins/n_games, losses/n_games, draws/n_games
-    print(f"  Baseline (plan=det,  sim=det)  win={w:.1%}  loss={l:.1%}  draw={d:.1%}")
+    print(f"  QMDP Baseline (plan=det,  sim=det)  win={w:.1%}  loss={l:.1%}  draw={d:.1%}")
 
-    # Mismatch: plan=rand, sim=det
+    # QMDP Mismatch: plan=rand, sim=det
     env_plan = POMDPEnv(opponent_policy=random_P2,
                        initial_state=S_INIT, n_obs_levels=1)
     vi_plan = ValueIteration(env_plan)
     vi_plan.solve()
     env_plan.transition_model.build_uniform_P2()
     π_mismatch = QMDPSolver(env_plan, V=vi_plan.V).solve()
-
-    wins, losses, draws = _run_games(env_det, π_mismatch, n_games)
+    wins, losses, draws = _run_games(env_det, π_mismatch, n_games, label='Exp 3 - QMDP Mismatch')
     w, l, d = wins/n_games, losses/n_games, draws/n_games
-    print(f"  Mismatch (plan=rand, sim=det)  win={w:.1%}  loss={l:.1%}  draw={d:.1%}")
+    print(f"  QMDP Mismatch (plan=rand, sim=det)  win={w:.1%}  loss={l:.1%}  draw={d:.1%}")
+
+    # POMCP Baseline: plan=det, sim=det
+    pomcp_base = POMCPSolver(env_det) #reuse environment
+    π_pomcp_base = pomcp_base.solve()
+    wins, losses, draws = _run_games(env_det, π_pomcp_base, n_games, label='Exp 3 - POMCP Baseline')
+    w, l, d = wins/n_games, losses/n_games, draws/n_games
+    print(f"  POMCP Baseline (plan=det, sim=det)  win={w:.1%}  loss={l:.1%}  draw={d:.1%}")
+
+    # POMCP Mismatch: plan = rand, sim=det
+    pomcp_mis = POMCPSolver(env_plan) #reuse environment
+    π_pomcp_mis = pomcp_mis.solve()
+    wins, losses, draws = _run_games(env_det, π_pomcp_mis, n_games, label='Exp 3 - POMCP Mismatch')
+    w, l, d = wins/n_games, losses/n_games, draws/n_games
+    print(f"  POMCP Mismatch (plan=rand, sim=det)  win={w:.1%}  loss={l:.1%}  draw={d:.1%}")
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='POMDP experiments')
