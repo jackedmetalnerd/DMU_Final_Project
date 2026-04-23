@@ -17,7 +17,7 @@ class ValueIteration(Solver):
         self.V = None
         self.policy = None
 
-    def solve(self) -> DictPolicy:
+    def solve(self, initial_V=None) -> DictPolicy:
         if not self.env.transition_model.T:
             self.env.transition_model.build_matrices()
         S, A, T, R, γ = self.env.S, self.env.A, self.env.T, self.env.R, self.env.γ
@@ -25,7 +25,8 @@ class ValueIteration(Solver):
         term_mask = np.array([s.terminal == 1 for s in S])
         term_vals = np.array([s.terminal_value() if s.terminal else 0.0 for s in S])
 
-        V = term_vals.copy()
+        V = initial_V.copy() if initial_V is not None else term_vals.copy()
+        V[term_mask] = term_vals[term_mask]
         it, start = 0, time.time()
 
         R_nonterminal = np.where(term_mask, 0.0, R)
