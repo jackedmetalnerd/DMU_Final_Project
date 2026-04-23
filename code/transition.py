@@ -22,6 +22,7 @@ from scipy.stats import binom
 from scipy.sparse import csr_matrix
 from tqdm import tqdm
 from state import State
+from action import Action
 
 # ── Index formula (lexicographic state ordering) ──────────────────────────────
 # Ordering: W1, M1, R1, W2, M2, R2, terminal — each 0-10, terminal 0-1
@@ -44,14 +45,13 @@ def _to_idx(W1, M1, R1, W2, M2, R2, t):
 
 
 class TransitionModel:
-    ACTIONS_ALL = ['P1_train_workers', 'P1_train_marines', 'P1_attack',
-                   'P2_train_workers', 'P2_train_marines', 'P2_attack']
-    ACTIONS_P1  = ['P1_train_workers', 'P1_train_marines', 'P1_attack']
+    ACTIONS_ALL = Action.ALL
+    ACTIONS_P1  = Action.P1_ACTIONS
 
-    def __init__(self, S: list, S_index: dict, π_P2):
-        self._S = S
-        self._S_index = S_index
-        self._π_P2 = π_P2
+    def __init__(self, states: list, state_index: dict, opponent_policy):
+        self._states          = states
+        self._state_index     = state_index
+        self._opponent_policy = opponent_policy
         # Combat lookup: 121-entry dict, fast to compute, always needed
         # by both transition() (for attack steps) and build_matrices().
         self._combat_lookup = self._precompute_combat()
@@ -63,7 +63,7 @@ class TransitionModel:
 
     # ── Public interface ──────────────────────────────────────────────────────
 
-    def transition(self, s: State, a: str) -> dict:
+    def transition(self, s: State, a) -> dict:
         """Return {next_State: probability} for a single (s, a) pair.
         Works without precomputed matrices. Suitable for QL and MCTS rollouts.
         Order of operations mirrors the matrix chain: P1 action → P2 action → resources.
@@ -80,7 +80,7 @@ class TransitionModel:
             if s1.terminal:
                 s2_dist[s1] = s2_dist.get(s1, 0.0) + p1
             else:
-                a2 = self._π_P2(s1)
+                a2 = self._opponent_policy(s1)
                 for s2, p2 in self._apply_action(s1, a2).items():
                     s2_dist[s2] = s2_dist.get(s2, 0.0) + p1 * p2
 
@@ -92,7 +92,7 @@ class TransitionModel:
 
         return result
 
-    def sample(self, s: State, a: str) -> State:
+    def sample(self, s: State, a) -> State:
         """Sample one next state from transition(s, a)."""
         dist = self.transition(s, a)
         states = list(dist.keys())
@@ -107,28 +107,42 @@ class TransitionModel:
         matrix-vector products. QL and MCTS should use transition() / sample()."""
         self._T_base = self._build_base()
         self._T_res  = self._build_resource_matrix()
-        self._T_P2   = self._build_P2_matrix(self._π_P2)
+        self._T_P2   = self._build_P2_matrix(self._opponent_policy)
         self.T = {a: self._T_base[a] @ self._T_P2 @ self._T_res
                   for a in self.ACTIONS_P1}
 
-    def update_P2_policy(self, π_P2) -> None:
+    def update_P2_policy(self, opponent_policy) -> None:
         """Recompose T after a P2 policy change. Requires matrices already built."""
-        self._π_P2 = π_P2
+        self._opponent_policy = opponent_policy
         if self._T_base is not None:
-            self._T_P2 = self._build_P2_matrix(π_P2)
+            self._T_P2 = self._build_P2_matrix(opponent_policy)
             self.T = {a: self._T_base[a] @ self._T_P2 @ self._T_res
                       for a in self.ACTIONS_P1}
 
-    def __getitem__(self, action: str):
+    def valid_act(self, a, s) -> bool:
+        """Return True if action a is available from state s."""
+        if s.terminal:
+            return False
+        if a == Action.P1_TRAIN_WORKERS:
+            return s.R1 > 0 and s.W1 < 10
+        if a == Action.P1_TRAIN_MARINES:
+            return s.R1 > 0 and s.M1 < 10
+        if a == Action.P2_TRAIN_WORKERS:
+            return s.R2 > 0 and s.W2 < 10
+        if a == Action.P2_TRAIN_MARINES:
+            return s.R2 > 0 and s.M2 < 10
+        return True  # attacks always valid
+
+    def __getitem__(self, action):
         if not self.T:
             raise RuntimeError("Call build_matrices() before accessing T[action].")
         return self.T[action]
 
     # ── Single-step helpers (used by transition()) ────────────────────────────
 
-    def _apply_action(self, s: State, a: str) -> dict:
+    def _apply_action(self, s: State, a) -> dict:
         """Return {next_State: prob} for one player's action from state s."""
-        if a in ('P1_attack', 'P2_attack'):
+        if a == Action.P1_ATTACK or a == Action.P2_ATTACK:
             result = {}
             for (nm1, nm2), p in self._combat_lookup[(s.M1, s.M2)].items():
                 term = 1 if (nm1 == 0 or nm2 == 0) else 0
@@ -137,20 +151,20 @@ class TransitionModel:
             return result
 
         invalid = (
-            (a == 'P1_train_workers'  and (s.R1 < 1 or s.W1 > 9)) or
-            (a == 'P1_train_marines'  and (s.R1 < 1 or s.M1 > 9)) or
-            (a == 'P2_train_workers'  and (s.R2 < 1 or s.W2 > 9)) or
-            (a == 'P2_train_marines'  and (s.R2 < 1 or s.M2 > 9))
+            (a == Action.P1_TRAIN_WORKERS and (s.R1 < 1 or s.W1 > 9)) or
+            (a == Action.P1_TRAIN_MARINES and (s.R1 < 1 or s.M1 > 9)) or
+            (a == Action.P2_TRAIN_WORKERS and (s.R2 < 1 or s.W2 > 9)) or
+            (a == Action.P2_TRAIN_MARINES and (s.R2 < 1 or s.M2 > 9))
         )
         if invalid:
             return {s: 1.0}
 
-        dW1 = (min(s.W1 + s.R1, 10) - s.W1) if a == 'P1_train_workers' else 0
-        dM1 = (min(s.M1 + s.R1, 10) - s.M1) if a == 'P1_train_marines' else 0
-        dR1 = -s.R1 if a in ('P1_train_workers', 'P1_train_marines') else 0
-        dW2 = (min(s.W2 + s.R2, 10) - s.W2) if a == 'P2_train_workers' else 0
-        dM2 = (min(s.M2 + s.R2, 10) - s.M2) if a == 'P2_train_marines' else 0
-        dR2 = -s.R2 if a in ('P2_train_workers', 'P2_train_marines') else 0
+        dW1 = (min(s.W1 + s.R1, 10) - s.W1) if a == Action.P1_TRAIN_WORKERS else 0
+        dM1 = (min(s.M1 + s.R1, 10) - s.M1) if a == Action.P1_TRAIN_MARINES else 0
+        dR1 = -s.R1 if a == Action.P1_TRAIN_WORKERS or a == Action.P1_TRAIN_MARINES else 0
+        dW2 = (min(s.W2 + s.R2, 10) - s.W2) if a == Action.P2_TRAIN_WORKERS else 0
+        dM2 = (min(s.M2 + s.R2, 10) - s.M2) if a == Action.P2_TRAIN_MARINES else 0
+        dR2 = -s.R2 if a == Action.P2_TRAIN_WORKERS or a == Action.P2_TRAIN_MARINES else 0
 
         sp_ok   = State(s.W1+dW1, s.M1+dM1, s.R1+dR1,
                         s.W2+dW2, s.M2+dM2, s.R2+dR2, 0)
@@ -170,7 +184,7 @@ class TransitionModel:
 
     def _extract_fields(self) -> dict:
         """Extract all state fields as numpy int arrays. Called once per build."""
-        return {f: np.array([getattr(s, f) for s in self._S], dtype=np.int64)
+        return {f: np.array([getattr(s, f) for s in self._states], dtype=np.int64)
                 for f in ('W1', 'M1', 'R1', 'W2', 'M2', 'R2', 'terminal')}
 
     def _precompute_combat(self) -> dict:
@@ -191,33 +205,33 @@ class TransitionModel:
 
     def _build_base(self) -> dict:
         f = self._extract_fields()
-        n = len(self._S)
+        n = len(self._states)
         src = np.arange(n, dtype=np.int64)
         term = f['terminal'].astype(bool)
         T = {}
 
         # ── Training actions ──────────────────────────────────────────────────
-        for a in ('P1_train_workers', 'P1_train_marines',
-                  'P2_train_workers', 'P2_train_marines'):
-            if a == 'P1_train_workers':
+        for a in (Action.P1_TRAIN_WORKERS, Action.P1_TRAIN_MARINES,
+                  Action.P2_TRAIN_WORKERS, Action.P2_TRAIN_MARINES):
+            if a == Action.P1_TRAIN_WORKERS:
                 invalid  = term | (f['R1'] < 1) | (f['W1'] > 9)
                 R_spent  = np.zeros_like(f['R1'])
                 stat_ok  = np.minimum(f['W1'] + f['R1'], 10)
-                ok_tgt   = _to_idx(stat_ok,  f['M1'], R_spent, f['W2'], f['M2'], f['R2'], 0)
-                fail_tgt = _to_idx(f['W1'],  f['M1'], R_spent, f['W2'], f['M2'], f['R2'], 0)
-            elif a == 'P1_train_marines':
+                ok_tgt   = _to_idx(stat_ok, f['M1'], R_spent, f['W2'], f['M2'], f['R2'], 0)
+                fail_tgt = _to_idx(f['W1'], f['M1'], R_spent, f['W2'], f['M2'], f['R2'], 0)
+            elif a == Action.P1_TRAIN_MARINES:
                 invalid  = term | (f['R1'] < 1) | (f['M1'] > 9)
                 R_spent  = np.zeros_like(f['R1'])
                 stat_ok  = np.minimum(f['M1'] + f['R1'], 10)
                 ok_tgt   = _to_idx(f['W1'], stat_ok,  R_spent, f['W2'], f['M2'], f['R2'], 0)
                 fail_tgt = _to_idx(f['W1'], f['M1'],  R_spent, f['W2'], f['M2'], f['R2'], 0)
-            elif a == 'P2_train_workers':
+            elif a == Action.P2_TRAIN_WORKERS:
                 invalid  = term | (f['R2'] < 1) | (f['W2'] > 9)
                 R_spent  = np.zeros_like(f['R2'])
                 stat_ok  = np.minimum(f['W2'] + f['R2'], 10)
                 ok_tgt   = _to_idx(f['W1'], f['M1'], f['R1'], stat_ok,  f['M2'], R_spent, 0)
                 fail_tgt = _to_idx(f['W1'], f['M1'], f['R1'], f['W2'],  f['M2'], R_spent, 0)
-            else:  # P2_train_marines
+            else:  # P2_TRAIN_MARINES
                 invalid  = term | (f['R2'] < 1) | (f['M2'] > 9)
                 R_spent  = np.zeros_like(f['R2'])
                 stat_ok  = np.minimum(f['M2'] + f['R2'], 10)
@@ -267,18 +281,18 @@ class TransitionModel:
         T_atk = csr_matrix((vals, (rows, cols)), shape=(n, n))
         T_atk.sum_duplicates()
         T_atk.eliminate_zeros()
-        T['P1_attack'] = T_atk
-        T['P2_attack'] = T_atk
+        T[Action.P1_ATTACK] = T_atk
+        T[Action.P2_ATTACK] = T_atk
 
         return T
 
-    def _build_P2_matrix(self, π_P2) -> csr_matrix:
-        S = self._S
-        n = len(S)
+    def _build_P2_matrix(self, opponent_policy) -> csr_matrix:
+        states = self._states
+        n = len(states)
         rows, cols, vals = [], [], []
         a2s = {a: [] for a in self.ACTIONS_ALL}
-        for s_idx, s in enumerate(tqdm(S, desc="Applying P2 policy")):
-            a2s[π_P2(s)].append(s_idx)
+        for s_idx, s in enumerate(tqdm(states, desc="Applying P2 policy")):
+            a2s[opponent_policy(s)].append(s_idx)
         for a, idxs in a2s.items():
             if not idxs:
                 continue
@@ -293,7 +307,7 @@ class TransitionModel:
 
     def _build_resource_matrix(self) -> csr_matrix:
         f = self._extract_fields()
-        n = len(self._S)
+        n = len(self._states)
         src = np.arange(n, dtype=np.int64)
         R1_new = np.minimum(f['R1'] + f['W1'], 10)
         R2_new = np.minimum(f['R2'] + f['W2'], 10)
