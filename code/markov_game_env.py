@@ -138,9 +138,11 @@ class MarkovGameEnv:
                 winner = s.winner()
                 print(f"\nGame Over! Winner: {winner} in {turn - 1} turns\n")
                 return winner
-
+            
+            
             a1 = p1_policy(s)
             a2 = p2_policy(s)
+            
             print(f"{turn:<5} | {str(a1):<22} | {str(a2):<22} | "
                   f"({s.W1:02d},{s.M1:02d},{s.R1:02d} | "
                   f"{s.W2:02d},{s.M2:02d},{s.R2:02d} | {s.terminal})")

@@ -158,10 +158,10 @@ if __name__ == '__main__':
     print("Running dual-MCTS Markov game simulation (Alternating Best Response)...")
     solver = MarkovGameSolver(
         env,
-        num_games=3,
-        mcts_c=sqrt(2),
+        num_games= 10,
+        mcts_c=sqrt(3),
         mcts_depth=50,
-        mcts_runs=10_000,
+        mcts_runs=5_000,
         max_turns=50,
     )
     solver.run()
