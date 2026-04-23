@@ -56,7 +56,7 @@ class QMDPSolver(Solver):
     
 class POMCPSolver(Solver):
     # Implement Partially Observable Monte Carlo Planning (POMCP)
-    def __init__(self, env, c=sqrt(2), depth=20, num_sims=500, n_particles=200):
+    def __init__(self, env, c=sqrt(2), depth=20, num_sims=1000, n_particles=200):
         super().__init__(env)
         self.c = c
         self.depth = depth
