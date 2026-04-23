@@ -24,14 +24,33 @@ from tqdm import tqdm
 from state import State
 from action import Action
 
+# ── Index formula (lexicographic state ordering) ──────────────────────────────
+# Ordering: W1, M1, R1, W2, M2, R2, terminal — each 0-10, terminal 0-1
+_STRIDES = np.array([
+    11**5 * 2,   # W1
+    11**4 * 2,   # M1
+    11**3 * 2,   # R1
+    11**2 * 2,   # W2
+    11**1 * 2,   # M2
+    11**0 * 2,   # R2
+    1,           # terminal
+], dtype=np.int64)
+
+
+def _to_idx(W1, M1, R1, W2, M2, R2, t):
+    """State index from field values. All args may be numpy arrays."""
+    return (W1 * _STRIDES[0] + M1 * _STRIDES[1] + R1 * _STRIDES[2]
+          + W2 * _STRIDES[3] + M2 * _STRIDES[4] + R2 * _STRIDES[5]
+          + t  * _STRIDES[6])
+
 
 class TransitionModel:
     ACTIONS_ALL = Action.ALL
     ACTIONS_P1  = Action.P1_ACTIONS
 
     def __init__(self, states: list, state_index: dict, opponent_policy):
-        self._states        = states
-        self._state_index   = state_index
+        self._states          = states
+        self._state_index     = state_index
         self._opponent_policy = opponent_policy
         # Combat lookup: 121-entry dict, fast to compute, always needed
         # by both transition() (for attack steps) and build_matrices().
@@ -163,6 +182,11 @@ class TransitionModel:
 
     # ── Sparse matrix builders ────────────────────────────────────────────────
 
+    def _extract_fields(self) -> dict:
+        """Extract all state fields as numpy int arrays. Called once per build."""
+        return {f: np.array([getattr(s, f) for s in self._states], dtype=np.int64)
+                for f in ('W1', 'M1', 'R1', 'W2', 'M2', 'R2', 'terminal')}
+
     def _precompute_combat(self) -> dict:
         lookup = {}
         for m1 in range(11):
@@ -180,43 +204,86 @@ class TransitionModel:
         return lookup
 
     def _build_base(self) -> dict:
-        states, state_index = self._states, self._state_index
-        n = len(states)
+        f = self._extract_fields()
+        n = len(self._states)
+        src = np.arange(n, dtype=np.int64)
+        term = f['terminal'].astype(bool)
         T = {}
-        for a in self.ACTIONS_ALL:
-            rows, cols, vals = [], [], []
-            for s_idx, s in enumerate(tqdm(states, desc=f"Building T[{a}]")):
-                if s.terminal:
-                    rows.append(s_idx); cols.append(s_idx); vals.append(1.0)
-                    continue
-                if a == Action.P1_ATTACK or a == Action.P2_ATTACK:
-                    for (nm1, nm2), p in self._combat_lookup[(s.M1, s.M2)].items():
-                        term = 1 if (nm1 == 0 or nm2 == 0) else 0
-                        sp = State(s.W1, nm1, s.R1, s.W2, nm2, s.R2, term)
-                        rows.append(s_idx); cols.append(state_index[sp]); vals.append(p)
-                else:
-                    invalid = (
-                        (a == Action.P1_TRAIN_WORKERS and (s.R1 < 1 or s.W1 > 9)) or
-                        (a == Action.P1_TRAIN_MARINES and (s.R1 < 1 or s.M1 > 9)) or
-                        (a == Action.P2_TRAIN_WORKERS and (s.R2 < 1 or s.W2 > 9)) or
-                        (a == Action.P2_TRAIN_MARINES and (s.R2 < 1 or s.M2 > 9))
-                    )
-                    if invalid:
-                        rows.append(s_idx); cols.append(s_idx); vals.append(1.0)
-                    else:
-                        dW1 = min(s.W1+s.R1,10)-s.W1 if a == Action.P1_TRAIN_WORKERS else 0
-                        dM1 = min(s.M1+s.R1,10)-s.M1 if a == Action.P1_TRAIN_MARINES else 0
-                        dR1 = -s.R1 if a == Action.P1_TRAIN_WORKERS or a == Action.P1_TRAIN_MARINES else 0
-                        dW2 = min(s.W2+s.R2,10)-s.W2 if a == Action.P2_TRAIN_WORKERS else 0
-                        dM2 = min(s.M2+s.R2,10)-s.M2 if a == Action.P2_TRAIN_MARINES else 0
-                        dR2 = -s.R2 if a == Action.P2_TRAIN_WORKERS or a == Action.P2_TRAIN_MARINES else 0
-                        sp_ok   = State(s.W1+dW1, s.M1+dM1, s.R1+dR1,
-                                        s.W2+dW2, s.M2+dM2, s.R2+dR2, 0)
-                        sp_fail = State(s.W1,     s.M1,     s.R1+dR1,
-                                        s.W2,     s.M2,     s.R2+dR2, 0)
-                        rows.append(s_idx); cols.append(state_index[sp_ok]);   vals.append(0.9)
-                        rows.append(s_idx); cols.append(state_index[sp_fail]); vals.append(0.1)
-            T[a] = csr_matrix((vals, (rows, cols)), shape=(n, n))
+
+        # ── Training actions ──────────────────────────────────────────────────
+        for a in (Action.P1_TRAIN_WORKERS, Action.P1_TRAIN_MARINES,
+                  Action.P2_TRAIN_WORKERS, Action.P2_TRAIN_MARINES):
+            if a == Action.P1_TRAIN_WORKERS:
+                invalid  = term | (f['R1'] < 1) | (f['W1'] > 9)
+                R_spent  = np.zeros_like(f['R1'])
+                stat_ok  = np.minimum(f['W1'] + f['R1'], 10)
+                ok_tgt   = _to_idx(stat_ok, f['M1'], R_spent, f['W2'], f['M2'], f['R2'], 0)
+                fail_tgt = _to_idx(f['W1'], f['M1'], R_spent, f['W2'], f['M2'], f['R2'], 0)
+            elif a == Action.P1_TRAIN_MARINES:
+                invalid  = term | (f['R1'] < 1) | (f['M1'] > 9)
+                R_spent  = np.zeros_like(f['R1'])
+                stat_ok  = np.minimum(f['M1'] + f['R1'], 10)
+                ok_tgt   = _to_idx(f['W1'], stat_ok,  R_spent, f['W2'], f['M2'], f['R2'], 0)
+                fail_tgt = _to_idx(f['W1'], f['M1'],  R_spent, f['W2'], f['M2'], f['R2'], 0)
+            elif a == Action.P2_TRAIN_WORKERS:
+                invalid  = term | (f['R2'] < 1) | (f['W2'] > 9)
+                R_spent  = np.zeros_like(f['R2'])
+                stat_ok  = np.minimum(f['W2'] + f['R2'], 10)
+                ok_tgt   = _to_idx(f['W1'], f['M1'], f['R1'], stat_ok,  f['M2'], R_spent, 0)
+                fail_tgt = _to_idx(f['W1'], f['M1'], f['R1'], f['W2'],  f['M2'], R_spent, 0)
+            else:  # P2_TRAIN_MARINES
+                invalid  = term | (f['R2'] < 1) | (f['M2'] > 9)
+                R_spent  = np.zeros_like(f['R2'])
+                stat_ok  = np.minimum(f['M2'] + f['R2'], 10)
+                ok_tgt   = _to_idx(f['W1'], f['M1'], f['R1'], f['W2'], stat_ok,  R_spent, 0)
+                fail_tgt = _to_idx(f['W1'], f['M1'], f['R1'], f['W2'], f['M2'],  R_spent, 0)
+
+            ok_tgt   = np.where(invalid, src, ok_tgt)
+            fail_tgt = np.where(invalid, src, fail_tgt)
+            p_ok     = np.where(invalid, 1.0, 0.9)
+            p_fail   = np.where(invalid, 0.0, 0.1)
+
+            mat = csr_matrix(
+                (np.concatenate([p_ok, p_fail]),
+                 (np.tile(src, 2), np.concatenate([ok_tgt, fail_tgt]))),
+                shape=(n, n))
+            mat.sum_duplicates()
+            mat.eliminate_zeros()
+            T[a] = mat
+
+        # ── Attack actions (same matrix for P1 and P2) ────────────────────────
+        group_key = f['M1'] * 11 + f['M2']
+        non_term  = ~term
+        all_rows, all_cols, all_vals = [], [], []
+
+        for key in range(121):
+            m1, m2 = divmod(key, 11)
+            idxs = np.where(non_term & (group_key == key))[0]
+            if len(idxs) == 0:
+                continue
+            for (nm1, nm2), p in self._combat_lookup[(m1, m2)].items():
+                t_new = np.int64(nm1 == 0 or nm2 == 0)
+                tgt = _to_idx(f['W1'][idxs], nm1, f['R1'][idxs],
+                              f['W2'][idxs], nm2, f['R2'][idxs], t_new)
+                all_rows.append(idxs)
+                all_cols.append(tgt)
+                all_vals.append(np.full(len(idxs), p, dtype=np.float64))
+
+        term_idxs = np.where(term)[0]
+        if len(term_idxs):
+            all_rows.append(term_idxs)
+            all_cols.append(term_idxs)
+            all_vals.append(np.ones(len(term_idxs), dtype=np.float64))
+
+        rows = np.concatenate(all_rows)
+        cols = np.concatenate(all_cols)
+        vals = np.concatenate(all_vals)
+        T_atk = csr_matrix((vals, (rows, cols)), shape=(n, n))
+        T_atk.sum_duplicates()
+        T_atk.eliminate_zeros()
+        T[Action.P1_ATTACK] = T_atk
+        T[Action.P2_ATTACK] = T_atk
+
         return T
 
     def _build_P2_matrix(self, opponent_policy) -> csr_matrix:
@@ -239,14 +306,11 @@ class TransitionModel:
         return T_P2
 
     def _build_resource_matrix(self) -> csr_matrix:
-        states, state_index = self._states, self._state_index
-        n = len(states)
-        rows, cols, vals = [], [], []
-        for s_idx, s in enumerate(tqdm(states, desc="Building resource matrix")):
-            if s.terminal:
-                rows.append(s_idx); cols.append(s_idx); vals.append(1.0)
-            else:
-                sp = State(s.W1, s.M1, min(s.R1 + s.W1, 10),
-                           s.W2, s.M2, min(s.R2 + s.W2, 10), s.terminal)
-                rows.append(s_idx); cols.append(state_index[sp]); vals.append(1.0)
-        return csr_matrix((vals, (rows, cols)), shape=(n, n))
+        f = self._extract_fields()
+        n = len(self._states)
+        src = np.arange(n, dtype=np.int64)
+        R1_new = np.minimum(f['R1'] + f['W1'], 10)
+        R2_new = np.minimum(f['R2'] + f['W2'], 10)
+        tgt = _to_idx(f['W1'], f['M1'], R1_new, f['W2'], f['M2'], R2_new, f['terminal'])
+        tgt = np.where(f['terminal'] == 1, src, tgt)
+        return csr_matrix((np.ones(n, dtype=np.float64), (src, tgt)), shape=(n, n))
