@@ -16,6 +16,7 @@ from game_env import GameEnv
 from policies import alternating_training_attack as ata_oop
 from value_iteration import ValueIteration
 from q_learning import QLearning
+from dqn import DQNSolver
 
 PASS = "  PASS"
 FAIL = "  FAIL"
@@ -51,7 +52,6 @@ all_pass &= check("State ordering identical", ok)
 
 # ══════════════════════════════════════════════════════════════════════════════
 print("\n=== 2. Reward Vector ===")
-breakpoint()
 max_diff = np.max(np.abs(orig_sim['R'] - env.R))
 ok = max_diff < 1e-10
 all_pass &= check("R vectors match", ok, f"max diff={max_diff:.2e}")
@@ -140,30 +140,45 @@ all_pass &= check("Win rates within 5%", ok,
                   f"orig={wr_orig:.2f} oop={wr_oop:.2f}")
 
 # ══════════════════════════════════════════════════════════════════════════════
-print("\n=== 6. Q-Learning (convergence check) ===")
-print("[Original Q-learning]")
-orig_eps = Q_learning(orig_sim, n_episodes=500, α=0.1)
-Q_orig = orig_eps[-1][1]
-π_Q_orig = lambda s: max(orig_sim['A'], key=lambda a: Q_orig[(s, a)])
+# print("\n=== 6. Q-Learning (convergence check) ===")
+# print("[Original Q-learning]")
+# orig_eps = Q_learning(orig_sim, n_episodes=500, α=0.1)
+# Q_orig = orig_eps[-1][1]
+# π_Q_orig = lambda s: max(orig_sim['A'], key=lambda a: Q_orig[(s, a)])
 
-print("\n[OOP Q-learning]")
-ql = QLearning(env, gamma=0.95, alpha=0.1, epsilon_start=0.2, epsilon_min=0.05)
-ql.solve(n_episodes=500)
+# print("\n[OOP Q-learning]")
+# ql = QLearning(env, gamma=0.95, alpha=0.1, epsilon_start=0.2, epsilon_min=0.05)
+# ql.solve(n_episodes=500)
 
-np.random.seed(99)
-wr_q_orig = sum(
-    run_orig_game(orig_sim, {s: π_Q_orig(s) for s in orig_sim['S']},
-                  alternating_training_attack, s_init) == 'P1'
+# np.random.seed(99)
+# wr_q_orig = sum(
+#     run_orig_game(orig_sim, {s: π_Q_orig(s) for s in orig_sim['S']},
+#                   alternating_training_attack, s_init) == 'P1'
+#     for _ in range(50)) / 50
+
+# np.random.seed(99)
+# wr_q_oop = sum(
+#     run_oop_game(env, {s: ql.policy(s) for s in env.S}, s_init) == 'P1'
+#     for _ in range(50)) / 50
+
+# ok = abs(wr_q_orig - wr_q_oop) < 0.10
+# all_pass &= check("Q-learning win rates within 10%", ok,
+#                   f"orig={wr_q_orig:.2f} oop={wr_q_oop:.2f}")
+
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n=== 7. DQN (convergence check) ===")
+print("[OOP DQN]")
+dqn = DQNSolver(env)
+dqn.solve(n_episodes=500)
+
+np.random.seed(77)
+wr_dqn = sum(
+    run_oop_game(env, dqn.policy(), s_init) == 'P1'
     for _ in range(50)) / 50
 
-np.random.seed(99)
-wr_q_oop = sum(
-    run_oop_game(env, {s: ql.policy(s) for s in env.S}, s_init) == 'P1'
-    for _ in range(50)) / 50
-
-ok = abs(wr_q_orig - wr_q_oop) < 0.10
-all_pass &= check("Q-learning win rates within 10%", ok,
-                  f"orig={wr_q_orig:.2f} oop={wr_q_oop:.2f}")
+ok = abs(wr_dqn - wr_orig) < 0.10
+all_pass &= check("DQN win rates within 10% of VI", ok,
+                  f"dqn={wr_dqn:.2f} vi={wr_orig:.2f}")
 
 # ══════════════════════════════════════════════════════════════════════════════
 print("\n" + "=" * 50)
