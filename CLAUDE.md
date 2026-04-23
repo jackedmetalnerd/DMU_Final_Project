@@ -33,7 +33,7 @@ python q_learning.py        # Trains Q-agent 2000 episodes, runs 5 simulations
 python mcts.py              # Runs 5 MCTS game simulations
 ```
 
-There is no build system, package manager, or test framework. Dependencies: `numpy`, `scipy`, `tqdm`, `matplotlib`.
+There is no build system, package manager, or test framework. Dependencies: `numpy`, `scipy`, `tqdm`, `matplotlib`, `torch`.
 
 ## Architecture
 
@@ -54,6 +54,7 @@ There is no build system, package manager, or test framework. Dependencies: `num
 | `value_iteration.py` | `ValueIteration(Solver)` — sparse matrix VI |
 | `q_learning.py` | `QLearning(Solver)` — tabular epsilon-greedy Q-learning |
 | `mcts.py` | `MCTSSolver(Solver)` — UCB1 Monte Carlo Tree Search |
+| `dqn.py` | `DQNSolver(Solver)` — Deep Q-Network with replay buffer and target network |
 | `validate.py` | Integration test suite comparing old vs. new implementations |
 | `compare_rewards.py` | Runs solvers across reward functions; reports win rates |
 
@@ -66,7 +67,8 @@ MDP
 Solver (ABC)
 ├── ValueIteration   # solve() → DictPolicy; uses T[a] @ V sparse matrix products
 ├── QLearning        # solve(n_episodes) → DictPolicy; uses sample() rollouts
-└── MCTSSolver       # solve() → MCTSPolicy; uses sample() rollouts
+├── MCTSSolver       # solve() → MCTSPolicy; uses sample() rollouts
+└── DQNSolver        # solve() → DictPolicy; neural network Q-function with replay buffer
 
 Policy (ABC)
 ├── DictPolicy       # wraps {State → Action} dict; __getitem__ for dict-style access
