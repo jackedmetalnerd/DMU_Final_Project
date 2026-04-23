@@ -11,6 +11,7 @@ FunctionPolicy  — wraps a plain callable (hand-coded opponent policies)
 SymmetricPolicy — mirrors a P1 Policy to P2 by swapping player fields;
                   replaces the P2_policy_converter() function in policies.py
 MCTSPolicy      — lazy policy that runs MCTS planning on each call
+BeliefPolicy    - wrapper for belief-based policies
 
 All concrete policies are callable objects, so they work wherever a plain
 callable is expected (GameEnv, simulate, update_P2_policy, etc.).
@@ -19,6 +20,7 @@ callable is expected (GameEnv, simulate, update_P2_policy, etc.).
 from abc import ABC, abstractmethod
 from action import Action
 from state import State
+import numpy as np
 
 
 class Policy(ABC):
@@ -110,3 +112,11 @@ class MCTSPolicy(Policy):
 
     def __call__(self, s: State) -> Action:
         return self._solver.get_action(s)
+
+class BeliefPolicy(Policy):
+    # POMDP policy: takes a belief vector instead of a state
+    def __init__(self, solver):
+        self._solver = solver
+
+    def __call__(self, b: np.ndarray) -> Action:
+        return self._solver.get_action(b)

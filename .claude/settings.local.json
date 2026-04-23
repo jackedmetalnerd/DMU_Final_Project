@@ -3,7 +3,17 @@
     "allow": [
       "Bash(git config:*)",
       "Bash(python validate.py)",
-      "Bash(pip install:*)"
+      "Bash(pip install:*)",
+      "Bash(python -c ':*)",
+      "Bash(python -c \"import compare_rewards; print\\('compare_rewards.py imports OK'\\)\")",
+      "Bash(python compare_rewards.py --solver vi --rf terminal_only --games 10)",
+<<<<<<< HEAD
+      "Bash(python3:*)",
+      "Bash(python test_joint_transition.py)",
+      "Bash(python test_markov_game_env.py)"
+=======
+      "Bash(python3:*)"
+>>>>>>> cd44b2e28539880ae88ee79fea9c3052d7db4f87
     ]
   }
 }
