@@ -266,10 +266,20 @@ if __name__ == '__main__':
         f"{n}={sigma2[s0_i, j]:.3f}" for j, n in enumerate(action_names)))
 
     # ── Simulations with final mixed policies ─────────────────────────────────
-    print("\nSimulating 3 games with final mixed policies...")
+    n_sims = 10
+    print(f"\nSimulating {n_sims} games with final mixed policies...")
     p1_mixed = MixedPolicy(sigma1, state_idx, Action.P1_ACTIONS)
     p2_mixed = MixedPolicy(sigma2, state_idx, Action.P2_ACTIONS)
 
-    for _ in range(10):
-        mg_env.simulate(p1_policy=p1_mixed, p2_policy=p2_mixed,
-                        max_turns=50)
+    results = [mg_env.simulate(p1_policy=p1_mixed, p2_policy=p2_mixed, max_turns=50)
+               for _ in range(n_sims)]
+
+    p1_wins = results.count('P1')
+    p2_wins = results.count('P2')
+    draws   = results.count('Draw')
+    print(f"\n{'='*40}")
+    print(f"  Results over {n_sims} games (mixed policies)")
+    print(f"{'='*40}")
+    print(f"  P1 wins: {p1_wins}/{n_sims} ({100*p1_wins/n_sims:.0f}%)")
+    print(f"  P2 wins: {p2_wins}/{n_sims} ({100*p2_wins/n_sims:.0f}%)")
+    print(f"  Draws:   {draws}/{n_sims} ({100*draws/n_sims:.0f}%)")
