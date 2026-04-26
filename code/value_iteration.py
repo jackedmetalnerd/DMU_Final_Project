@@ -15,6 +15,7 @@ class ValueIteration(Solver):
         super().__init__(env)
         self.tol = tol
         self.V = None
+        self.v0_history = []
         self.policy = None
 
     def solve(self) -> DictPolicy:
@@ -36,6 +37,9 @@ class ValueIteration(Solver):
             Vp[term_mask] = term_vals[term_mask]
 
             delta = np.max(np.abs(V - Vp))
+            s0_idx = self.env.S_index[self.env.initial_state]
+            self.v0_history.append(float(Vp[s0_idx]))
+
             V = Vp
             it += 1
 

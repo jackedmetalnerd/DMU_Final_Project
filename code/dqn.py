@@ -88,7 +88,7 @@ class DQNSolver(Solver):
     def __init__(
         self,
         env: GameEnv,
-        gamma: float           = 0.99,
+        gamma: float           = 0.95,
         epsilon: float         = 0.5,
         epsilon_decay: float   = 0.999,
         epsilon_min: float     = 0.01,
@@ -112,6 +112,8 @@ class DQNSolver(Solver):
         self._q_target  = copy.deepcopy(self._q_net)
         self._optimizer = torch.optim.Adam(self._q_net.parameters(), lr=lr)
         self._buffer    = _ReplayBuffer(buffer_capacity)
+        self.v0_history = []
+        self._s0_tensor = None  #set on first solve() call
 
     # ── Public interface ──────────────────────────────────────────────────────
 
@@ -120,6 +122,8 @@ class DQNSolver(Solver):
         env           = self.env
         epsilon       = self.epsilon
         global_steps  = 0
+        self._s0_tensor = self._encode(env.initial_state)
+
 
         for episode in range(1, n_episodes + 1):
             env.reset()
@@ -143,10 +147,18 @@ class DQNSolver(Solver):
 
                 s = sp
 
-            epsilon = max(self.epsilon_min, epsilon * self.epsilon_decay)
+            with torch.no_grad():
+                v0 = self._q_net(self._s0_tensor).max().item()
+            self.v0_history.append(v0)
 
-            if episode % 100 == 0:
-                print(f"Episode {episode}/{n_episodes}  ε={epsilon:.4f}")
+            epsilon = max(self.epsilon_min, epsilon * self.epsilon_decay)
+            
+            if n_episodes >= 10_000: #cleaner output for large runs
+                if episode % 1000 == 0:
+                    print(f"Episode {episode}/{n_episodes}  ε={epsilon:.4f}")
+            else:
+                if episode % 100 == 0:
+                    print(f"Episode {episode}/{n_episodes}  ε={epsilon:.4f}")
 
         return self._build_policy()
 

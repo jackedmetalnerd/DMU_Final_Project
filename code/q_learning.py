@@ -16,14 +16,24 @@ class QLearning(Solver):
         self.epsilon_start = epsilon_start
         self.epsilon_min   = epsilon_min
         self.Q             = {(s, a): 0.0 for s in env.S for a in env.A}
+        self.v0_history = []
+        self._s0 = env.initial_state
+
 
     def solve(self, n_episodes=100) -> DictPolicy:
         """Train for n_episodes and return a greedy DictPolicy."""
         for i in range(1, n_episodes + 1):
             epsilon = max(self.epsilon_min, self.epsilon_start * (1 - i / n_episodes))
             self._episode(epsilon)
-            if i % 100 == 0:
-                print(f"Episode {i}/{n_episodes}")
+            s0 = self._s0
+            self.v0_history.append(max(self.Q[(s0, a)] for a in self.env.A))
+            
+            if n_episodes >= 10_000: #cleaner output for large runs
+                if i % 1000 == 0:
+                    print(f"Episode {i}/{n_episodes}")
+            else:
+                if i % 100 == 0:
+                    print(f"Episode {i}/{n_episodes}")
         return self._build_policy()
 
     def policy(self, s=None):
