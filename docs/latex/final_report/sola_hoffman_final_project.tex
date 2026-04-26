@@ -4,6 +4,8 @@
 \usepackage{booktabs}
 \usepackage{hyperref}
 \usepackage{soul}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
 
 \hypersetup{
   colorlinks=true,
@@ -30,16 +32,20 @@
 \section{Introduction}
 % -----------------------------------------------------------------------
 
-This project develops a two-player strategy game in which each player manages workers,
-marines, and resources with the goal of eliminating all enemy marines. The game is
-formalized as a Markov Decision Process and solved using methods from the course, with
-increasing model complexity across three tiers of completion. The first tier utilized
-value iteration to solve for an optimal policy against a deterministic policy of the
-adversary and reinforcement learning, specifically Q-learning, Deep Q-Network (DQN)
-learning, and \hl{add others}, to learn against this optimal policy. The second tier
-formulated this problem as both a Markov Game (MG) and a Partially Observable Markov
-Decision Process (POMDP). The third tier combined the MG and POMDP into a Partially
-Observable Stochastic Game (POSG). \hl{summarize results}
+This project develops a two-player strategy game in which each player manages workers, 
+marines, and resources with the goal of eliminating all enemy marines. The game is 
+formalized as a Markov Decision Process and solved using methods from the course, with 
+increasing model complexity across three tiers of completion. The first tier utilizes 
+value iteration to solve for an optimal policy against a deterministic policy of the 
+adversary and Monte Carlo Tree Search (MCTS) to evaluate online planning effectiveness. 
+Reinforcement learning is also applied, specifically Q-learning and Deep Q-Network (DQN) 
+learning to learn against this optimal policy. The second tier extends the problem 
+formulation in two branches: first as a Partially Observable Markov Decision Process 
+(POMDP), where the player does not have full state knowledge, which is approximately 
+solved with both the Q-Value MDP approximation (QMDP) and Partially Observable Monte 
+Carlo Planning (POMCP), then as a Markov Game (MG), where both players have dynamic 
+gameplay policies. The third tier combines the MG and POMDP into a Partially Observable 
+Stochastic Game (POSG). \hl{summarize results}
 
 % -----------------------------------------------------------------------
 \section{Background and Related Work}
@@ -49,7 +55,7 @@ Observable Stochastic Game (POSG). \hl{summarize results}
 relates to this project.}
 
 % -----------------------------------------------------------------------
-\section{Problem Formulation}
+\section{Problem Formulation}\label{sec:formulation}
 % -----------------------------------------------------------------------
 
 \subsection{State Space}
@@ -57,7 +63,8 @@ relates to this project.}
 The state for each player $i \in \{1, 2\}$ is $(w_i, m_i, r_i)$, representing workers,
 marines, and resources. The joint state is $s = (w_1, m_1, r_1, w_2, m_2, r_2)$, plus
 a terminal state $s_{\text{term}}$. Both players start at $w = m = r = 1$. Resources
-increase by $w_i$ each turn.
+increase by $w_i$ each turn. Workers, marines, and resources for each player are 
+limited to $w_max = m_max = r_max = 10$, yielding ~3.5M total states.
 
 \subsection{Action Space}
 
@@ -97,20 +104,141 @@ $R = 1$ upon reaching $s_{\text{term}}$ as the winner; $R = 0$ otherwise.
 \section{Solution Approach}
 % -----------------------------------------------------------------------
 
-\subsection{Tier 1 --- MDP, Value Iteration, and Reinforcement Learning}
+\subsection{Tier 1: Value Iteration on the Fully Observable MDP}
 
-The game is formalized as an MDP and solved via value iteration to obtain an optimal
-policy $\pi^*$. A reinforcement learning agent (e.g., Q-learning or DQN) is
-then trained on the same environment, with the two approaches compared in terms of
-policy quality and convergence.
+The game is formalized as a fully observable MDP with pre-computed transition matrices
+$T_a$ for each Player~1 action $a$, each of which captures the effect of Player~1's
+action, the Player~2 policy-induced response, and the deterministic resource update.
+Player~2's default action policy, \texttt{alternating\_training\_attack}, alternates
+between training marines and workers unless both are saturated ($m_2 = w_2 = 10$), in
+which case the attack action is selected. Combat outcome probabilities are also
+precomputed for all permutations of P1 and P2 marine counts based on the binomial
+distribution described in Section~\ref{sec:formulation}. This MDP is then solved via
+value iteration to obtain an optimal policy $\pi^*$. The computational cost of the
+transition and combat precomputations is offset during value iteration, since the
+following Bellman update, which is iterated until reaching a preset variation tolerance
+of $10^{-9}$, can be computed by sparse matrix--vector multiplication:
+\begin{equation}
+  V_{k+1}(s) = R(s) + \gamma \max_{a \in \mathcal{A}} \sum_{s'} T_a(s, s')\, V_k(s').
+\end{equation}
+Once the value estimate $V$ converges, a greedy policy is extracted by taking the
+Player~1 action associated with the highest value estimate for each state.
 
-\subsection{Tier 2 --- Markov Game and POMDP}
+\subsection{Tier 1: Online Planning with MCTS}
 
-The model is extended to either a Partially Observable MDP, where each player observes
-only a noisy estimate of the opponent's state, or a Markov Game, where both players act
+Since value iteration requires full-state enumeration, an online planner---Monte Carlo
+Tree Search (MCTS)---is also implemented, which, if it can perform comparably to value
+iteration, would scale much more easily to higher personnel and resource limits (i.e.,
+a larger state space), though without the convergence guarantees of value iteration.
+From each state encountered during gameplay, MCTS incrementally builds a search tree
+using the Upper Confidence Bound (UCB) with $c = \sqrt{2}$ to select actions and a
+random rollout to a 50-step depth to estimate expected value. For each step in the
+environment, $N = 1000$ MCTS simulations are run, each of which explores via UCB,
+expands the tree upon reaching leaf nodes, performs a rollout value estimate, and backs
+up the discounted return along the full path. After this full run, the agent acts in
+the environment by taking the action with the highest MCTS-estimated $Q(s, a)$.
+
+\subsection{Tier 1: Reinforcement Learning: Q-Learning and DQN}
+
+Two closely related reinforcement learning methods, Q-learning and DQN, are applied to
+the same MDP environment. For Q-learning, the expected long-term reward $Q(s, a)$ for
+each state--action pair is initialized to zero and, in a series of simulated steps in
+the environment, updated as shown in Algorithm~\ref{alg:qlearning} with $\alpha = 0.1$,
+$\gamma = 0.95$, and a linearly decaying exploration rate from $\varepsilon_0 = 0.2$ to
+$\varepsilon_{\min} = 0.05$.
+
+\begin{algorithm}
+\caption{Tabular Q-Learning for GameEnv}
+\label{alg:qlearning}
+\begin{algorithmic}[1]
+\State Initialize $Q(s, a) \gets 0$ for all $(s, a) \in \mathcal{S} \times \mathcal{A}_{P1}$
+\For{episode $i = 1, 2, \ldots, N$}
+  \State $\varepsilon \gets \max(\varepsilon_{\min},\, \varepsilon_0 (1 - i/N))$
+  \State \texttt{env.reset()};\quad $s \gets \texttt{env.observe()}$
+  \While{$\neg s.\textrm{terminal}$}
+    \State $a \gets \varepsilon\textrm{-greedy}(Q, s, \varepsilon)$
+    \State $r \gets \texttt{env.act}(a)$;\quad $s' \gets \texttt{env.observe()}$
+    \State $Q(s, a) \gets Q(s, a) + \alpha\!\left[r + \gamma \max_{a'} Q(s', a') - Q(s, a)\right]$
+    \State $s \gets s'$
+  \EndWhile
+\EndFor
+\State \Return $\pi(s) = \arg\max_a Q(s, a)$
+\end{algorithmic}
+\end{algorithm}
+
+DQN, in contrast with Q-learning's tabular Q estimation, approximates $Q(s, a; \theta)$
+with a two-layer neural network. This method provides few practical advantages on a
+tabularly tractable MDP, but, like MCTS in comparison with value iteration, would scale
+much more effectively to larger state spaces where Q-table management becomes
+intractable. An understanding of the relative performance of scalable methods is
+desirable for application to future, more state-complex competition models. The DQN
+implementation maps the 7-dimensional state to a 256-element hidden layer with a ReLU
+nonlinearity, followed by a 3-element P1 action vector. Network training uses a
+circular replay buffer with capacity $10^5$, mini-batches of 50 per training step,
+target-network updates every 50 steps, and adaptive moment estimation (Adam) with
+learning rate $5 \times 10^{-4}$. Exploration decays exponentially from
+$\varepsilon_0 = 0.5$ to $\varepsilon_{\min} = 0.01$. Actions are selected from the
+resulting estimated $Q$ analogously to Q-learning action selection.
+
+\subsection{Tier 2: Partial Observability and QMDP}
+
+The game model is then extended in two branches; the first is to a Partially Observable
+MDP, where Player~1 does not have full state knowledge. Instead, P1 observes its own
+personnel and resources exactly but receives only a discretized observation of P2's
+personnel with granularity $n$: $n = 1$ corresponds to no observability and no
+knowledge of opponent state, $n = 2$ to observability only of the presence or absence
+of opponent workers and marines, up to $n = 11$ corresponding to full state
+observability. Since observations are deterministic given the underlying state, they
+can be precomputed using a matrix mask to speed up belief updates. In addition to
+partial state observability, the POMDP solvers are applied to address opponent-policy
+uncertainty: in some experiments the planner is built assuming a uniform-random
+Player~2 policy, while P2 actually plays a state-deterministic policy, emulating play
+against a fully unknown opponent strategy.
+
+QMDP was implemented first; this solution method approximates the POMDP value function
+by assuming the state will become fully observable after one step, which reduces
+planning to a one-step lookahead over the associated MDP value function (obtained
+during MDP analysis using value iteration). The QMDP expected reward, now a function of
+a belief--action pair since the state is partially unobservable, is given by
+\begin{equation}
+  Q_{\text{QMDP}}(b, a) = b^{\!\top}\!\left(R + \gamma\, T_a V^*\right),
+  \qquad
+  \pi_{\text{QMDP}}(b) = \arg\max_a Q_{\text{QMDP}}(b, a).
+\end{equation}
+This Q-value estimate was calculated and evaluated---by simulating many games and
+assessing P1's win rate---for various state observability granularities
+($n \in \{1, 2, 4, 11\}$), two P2 policies (\texttt{alternating\_training\_attack} and
+a uniform-random policy), and finally against \texttt{alternating\_training\_attack}
+where the value-iteration-derived $V$ function was calculated assuming a uniform-random
+P2 policy, simulating a lack of insight into P2's strategy.
+
+\subsection{Tier 2: POMCP}
+
+While QMDP is a simply implemented solution method, it is often ineffective under
+persistent uncertainty due to its assumption of next-state full observability. It also
+requires a full state-space value estimate. To mitigate these limitations, again
+allowing for scalability to larger and more complex problem formulations, POMCP is also
+implemented. This method combines MCTS with a particle-based belief state, which is
+updated and tracked along an action--observation history; a history--action pair is
+used to index the search tree. For each call, this implementation draws 200 particles
+from the current belief, runs 1000 simulations from those particles using the same UCB
+as in MCTS for the MDP, performs a uniform-random rollout to a depth of 20 steps from
+leaf nodes, and backs up the discounted return along the simulated path. After this
+process completes, the action associated with the highest estimated value at the root
+is selected, and the associated particle set becomes the new belief representation for
+the next state. This allows a much more compact and tractable belief update than a full
+state-space Bayesian update. POMCP is significantly more expensive per step than QMDP
+but handles persistent uncertainty much better. For these reasons, POMCP is run only on
+the case where Player~2's policy is unknown: as will be shown in
+Section~\ref{sec:results}, QMDP performs well in the other cases, so POMCP's
+computational cost outweighs potential marginal performance gains.
+
+\subsection{Tier 2: Markov Game}
+
+The model is extended to a Markov Game, where both players act
 simultaneously and transitions depend on the joint action.
 
-\subsection{Tier 3 --- Partially Observable Stochastic Game}
+\subsection{Tier 3: Partially Observable Stochastic Game}
 
 The full formulation combines partial observability with simultaneous multi-agent
 interaction. Each player maintains a belief over the joint state and reasons about
@@ -118,7 +246,7 @@ opponent behavior under uncertainty. Solution methods may include multi-agent
 reinforcement learning or approximate dynamic programming techniques.
 
 % -----------------------------------------------------------------------
-\section{Results}
+\section{Results}\label{sec:results}
 % -----------------------------------------------------------------------
 
 \hl{Present results with plots and tables. Quantify uncertainty where possible (e.g.,
