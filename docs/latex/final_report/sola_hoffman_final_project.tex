@@ -235,8 +235,7 @@ computational cost outweighs potential marginal performance gains.
 
 \subsection{Tier 2: Markov Game}
 
-The model is extended to a Markov Game, where both players act
-simultaneously and transitions depend on the joint action.
+All the previous approaches used a fixed opponent policy to develop a specific policy. However, this problem is inheritly a two person game where both players should be responding to the actions of the other. The application of game theory models the interactions between two players. A Markov game (MG) applies game theory to a MDP. To simulate this problem as a MG, a method called alteranting best response is applied and fictious self play are applied. Alternating best response is a iterative process where the opposing player has their policy fixed to reduce the MG to a MDP. Value iteration is applied against the current opponent policy to find the best response. Next, the recently calculated policy is frozen to that respective player and the other player, who previously had their policy frozen, applies value iteration against the other players best response to the current players previous policy. To prevent circular policy calculations, fictious self play is where an average policy is tracked as the alternating best response iteration process unfolds. The average policy is used as the opponents frozen policy while the current player runs value iteration against it. This allows for the allow policy to converge 
 
 \subsection{Tier 3: Partially Observable Stochastic Game}
 
