@@ -40,11 +40,11 @@ value iteration to solve for an optimal policy against a deterministic policy of
 adversary and Monte Carlo Tree Search (MCTS) to evaluate online planning effectiveness. 
 Reinforcement learning is also applied, specifically Q-learning and Deep Q-Network (DQN) 
 learning to learn against this optimal policy. The second tier extends the problem 
-formulation in two branches: first as a Partially Observable Markov Decision Process 
+formulation in two branches. First, it is extended to a Partially Observable Markov Decision Process 
 (POMDP), where the player does not have full state knowledge, which is approximately 
 solved with both the Q-Value MDP approximation (QMDP) and Partially Observable Monte 
-Carlo Planning (POMCP), then as a Markov Game (MG), where both players have dynamic 
-gameplay policies. The third tier combines the MG and POMDP into a Partially Observable 
+Carlo Planning (POMCP). Second, it simulated as a Markov Game (MG), where both players have dynamic 
+gameplay policies. The Markov Game is solved by freezing the opponent's policy and solving it as a MDP iteratively between both players, formally called alternating best response. Fictious self play keeps track of the average policy of both players and applies alteranting best respones to this average policy. The third tier would combine the MG and POMDP into a Partially Observable 
 Stochastic Game (POSG). \hl{summarize results}
 
 % -----------------------------------------------------------------------
