@@ -69,12 +69,15 @@ if __name__ == '__main__':
     π_star = solver.solve()
     print("Done.")
 
-    for _ in range(5):
-        env.simulate(π_star, label='Value Iteration')
+    n_games = 20
+    results = [env.simulate(π_star, label='Value Iteration') for _ in range(n_games)]
 
-    # Also test against a P2 that uses the same VI-derived policy
-    π_P2_vi = P2_policy_converter(π_star)
-    env.update_P2_policy(π_P2_vi)
-    print("\nVI policy vs VI-derived P2:")
-    for _ in range(3):
-        env.simulate(π_star, label='Value Iteration')
+    p1_wins = results.count('P1')
+    p2_wins = results.count('P2')
+    draws   = results.count('Draw')
+    print(f"\n{'='*40}")
+    print(f"  Results over {n_games} games")
+    print(f"{'='*40}")
+    print(f"  P1 wins: {p1_wins}/{n_games} ({100*p1_wins/n_games:.0f}%)")
+    print(f"  P2 wins: {p2_wins}/{n_games} ({100*p2_wins/n_games:.0f}%)")
+    print(f"  Draws:   {draws}/{n_games} ({100*draws/n_games:.0f}%)")

@@ -77,7 +77,7 @@ class GameEnv(MDP):
                       f"({s.W1:02d},{s.M1:02d},{s.R1:02d} | "
                       f"{s.W2:02d},{s.M2:02d},{s.R2:02d} | {s.terminal})")
                 print(f"\nGame Over! Winner: {s.winner()} in {turn - 1} turns\n")
-                return
+                return s.winner()
 
             a1 = p1_policy[s] if isinstance(p1_policy, dict) else p1_policy(s)
             a2 = self.opponent_policy(s)
@@ -88,3 +88,4 @@ class GameEnv(MDP):
             s = self.transition_model.sample(s, a1)
 
         print('\nGame Over! Draw - maximum turns reached\n')
+        return 'Draw'
