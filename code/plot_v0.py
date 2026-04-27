@@ -14,16 +14,57 @@ env = GameEnv(opponent_policy=alternating_training_attack, initial_state=S_INIT)
 
 # Run all solvers
 vi = ValueIteration(env)
-vi.solve()
+π_vi = vi.solve()
 
 ql = QLearning(env, alpha=0.1)
-ql.solve(n_episodes=10_000)
+π_ql = ql.solve(n_episodes=10_000)
 
 dqn = DQNSolver(env, batch_size=128, target_update_freq=200)
-dqn.solve(n_episodes=10_000)
+π_dqn = dqn.solve(n_episodes=10_000)
 
-mcts = MCTSSolver(env, c=sqrt(2), depth=50, num_runs=10_000)
+mcts = MCTSSolver(env, c=sqrt(2), depth=50, num_runs=10000)
 mcts.get_action(S_INIT)
+
+# Separate lighter MCTS solver for win-rate evaluation (1000 runs/move)
+mcts_eval = MCTSSolver(env, c=sqrt(2), depth=20, num_runs=200)
+π_mcts_eval = mcts_eval.solve()
+
+# ── Win-rate helpers ──────────────────────────────────────────────────────────
+
+N_EVAL = 50
+
+def _wilson_ci(p, n, z=1.96):
+    denom  = 1 + z**2 / n
+    center = (p + z**2 / (2*n)) / denom
+    half   = z * np.sqrt(p*(1-p)/n + z**2/(4*n**2)) / denom
+    return center - half, center + half
+
+def _bar_yerr(proportions, n):
+    lowers, uppers = [], []
+    for p in proportions:
+        lo, hi = _wilson_ci(p, n)
+        lowers.append(p - lo)
+        uppers.append(hi - p)
+    return np.array([lowers, uppers])
+
+def _measure_win_rate(policy, n_games=N_EVAL):
+    wins = losses = draws = 0
+    for _ in range(n_games):
+        s = S_INIT
+        for _ in range(50):
+            if s.terminal:
+                break
+            if hasattr(policy, '_solver'):
+                policy._solver.reset_tree()
+            a = policy(s)
+            s = env.transition_model.sample(s, a)
+        if s.M1 > 0 and s.M2 == 0:
+            wins += 1
+        elif s.M2 > 0 and s.M1 == 0:
+            losses += 1
+        else:
+            draws += 1
+    return wins / n_games, losses / n_games, draws / n_games
 
 # ── Figure 1: VI / QL / DQN training curves + MCTS reference line ─────────────
 fig1, ax1 = plt.subplots(figsize=(9, 5))
@@ -52,5 +93,35 @@ ax2.set_title('MCTS: estimate sharpening with rollouts')
 ax2.axhline(0, color='gray', linestyle='--', linewidth=0.8)
 fig2.tight_layout()
 fig2.savefig('v0_mcts_rollouts.png', dpi=150)
+
+# ── Figure 3: win rate bar chart with 95% Wilson CI ───────────────────────────
+print("Measuring win rates...")
+solvers   = ['VI', 'Q-Learning', 'DQN', 'MCTS\n(1000 runs/move)']
+policies  = [π_vi, π_ql, π_dqn, π_mcts_eval]
+wins3, losses3, draws3 = [], [], []
+for label, π in zip(solvers, policies):
+    w, l, d = _measure_win_rate(π)
+    wins3.append(w); losses3.append(l); draws3.append(d)
+    print(f"  {label.replace(chr(10), ' ')}: win={w:.1%}  loss={l:.1%}  draw={d:.1%}")
+
+bw = 0.25
+fig3, ax3 = plt.subplots(figsize=(9, 5))
+x = np.arange(len(solvers))
+ax3.bar(x - bw, wins3,   bw, label='Win',  color='steelblue',
+        yerr=_bar_yerr(wins3,   N_EVAL), capsize=4, error_kw={'elinewidth': 1})
+ax3.bar(x,      losses3, bw, label='Loss', color='tomato',
+        yerr=_bar_yerr(losses3, N_EVAL), capsize=4, error_kw={'elinewidth': 1})
+ax3.bar(x + bw, draws3,  bw, label='Draw', color='gray',
+        yerr=_bar_yerr(draws3,  N_EVAL), capsize=4, error_kw={'elinewidth': 1})
+ax3.set_xticks(x)
+ax3.set_xticklabels(solvers)
+ax3.set_xlabel('Solver')
+ax3.set_ylabel('Rate')
+ax3.set_title(f'Win rates by solver (n={N_EVAL} games, 95% Wilson CI)')
+ax3.set_ylim(0, 1)
+ax3.legend()
+fig3.tight_layout()
+fig3.savefig('mdp_winrates.png', dpi=150)
+print("Saved mdp_winrates.png")
 
 plt.show()

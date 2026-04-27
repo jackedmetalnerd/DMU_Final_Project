@@ -88,8 +88,8 @@ class MCTSSolver(Solver):
         q_it = env.reward.evaluate(s) + env.γ * self._run(sp, depth - 1)
         self.n[(s, a)] += 1
         self.q[(s, a)] += (q_it - self.q[(s, a)]) / self.n[(s, a)]
-        key = (s, a, sp)
-        self.t[key] = self.t.get(key, 0) + 1
+        #key = (s, a, sp)
+        #self.t[key] = self.t.get(key, 0) + 1
 
         return q_it
 
