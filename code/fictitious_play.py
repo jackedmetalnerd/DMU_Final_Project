@@ -233,7 +233,7 @@ if __name__ == '__main__':
 
     solver = FictitiousPlay(
         mg_env,
-        n_iters=10,
+        n_iters=50,
         vi_tol=1e-9,
         max_turns=50,
     )
@@ -266,7 +266,7 @@ if __name__ == '__main__':
         f"{n}={sigma2[s0_i, j]:.3f}" for j, n in enumerate(action_names)))
 
     # ── Simulations with final mixed policies ─────────────────────────────────
-    n_sims = 10
+    n_sims = 50
     print(f"\nSimulating {n_sims} games with final mixed policies...")
     p1_mixed = MixedPolicy(sigma1, state_idx, Action.P1_ACTIONS)
     p2_mixed = MixedPolicy(sigma2, state_idx, Action.P2_ACTIONS)

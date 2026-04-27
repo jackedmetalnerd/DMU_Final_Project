@@ -252,7 +252,7 @@ if __name__ == '__main__':
     print("Running VI Alternating Best Response...")
     solver = VIMarkovGameSolver(
         env,
-        num_games=4,
+        num_games=10,
         vi_tol=1e-9,
         max_turns=50,
     )
