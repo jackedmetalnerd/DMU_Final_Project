@@ -22,6 +22,7 @@ Key methods:
 from state import State
 from action import Action
 from reward import Reward
+from policy import SymmetricPolicy
 from joint_transition import JointTransitionModel
 from game_env import GameEnv
 
@@ -105,6 +106,25 @@ class MarkovGameEnv:
         return GameEnv(
             opponent_policy=p2_policy,
             initial_state=self.initial_state,
+            reward=self._reward,
+        )
+
+    def as_p2_gameenv(self, p1_policy) -> GameEnv:
+        """Create a 1-player GameEnv for P2 with P1's policy fixed.
+
+        Uses state inversion so single-agent solvers (VI, QL) can compute P2's
+        best response. The returned GameEnv has P1/P2 fields swapped in the
+        initial state; VI results (DictPolicy over inverted states → P1-labeled
+        actions) should be wrapped in SymmetricPolicy to get a callable P2 policy
+        for the original game.
+        """
+        s0 = self.initial_state
+        inv_initial = State(W1=s0.W2, M1=s0.M2, R1=s0.R2,
+                            W2=s0.W1, M2=s0.M1, R2=s0.R1,
+                            terminal=s0.terminal)
+        return GameEnv(
+            opponent_policy=SymmetricPolicy(p1_policy),
+            initial_state=inv_initial,
             reward=self._reward,
         )
 
