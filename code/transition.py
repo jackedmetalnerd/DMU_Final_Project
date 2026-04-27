@@ -9,6 +9,9 @@ Encapsulates all transition logic extracted from GameEnv, including:
   - P2 policy application
   - Deterministic resource update
 
+Actions are resolved SIMULTANEOUSLY: both players observe the original state,
+choose their actions, and all effects are combined before resources update.
+
 Public interface:
   transition(s, a) -> dict[State, float]   — single-step distribution, no matrices needed
   sample(s, a)     -> State                — sample one next state
@@ -19,7 +22,7 @@ Public interface:
 
 import numpy as np
 from scipy.stats import binom
-from scipy.sparse import csr_matrix
+from scipy.sparse import csr_matrix, diags
 from tqdm import tqdm
 from state import State
 from action import Action
@@ -53,44 +56,56 @@ class TransitionModel:
         self._states          = states
         self._state_index     = state_index
         self._opponent_policy = opponent_policy
-        # Combat lookup: 121-entry dict, fast to compute, always needed
-        # by both transition() (for attack steps) and build_matrices().
-        self._combat_lookup = self._precompute_combat()
-        # Sparse matrices deferred — call build_matrices() when needed.
+        self._combat_lookup   = self._precompute_combat()
         self._T_base = None
         self._T_res  = None
-        self._T_P2   = None
         self.T = {}
 
     # ── Public interface ──────────────────────────────────────────────────────
 
     def transition(self, s: State, a) -> dict:
         """Return {next_State: probability} for a single (s, a) pair.
-        Works without precomputed matrices. Suitable for QL and MCTS rollouts.
-        Order of operations mirrors the matrix chain: P1 action → P2 action → resources.
+        Uses simultaneous action semantics: P2's action is chosen from the
+        original state s, and all effects resolve together.
         """
         if s.terminal:
             return {s: 1.0}
 
-        # Step 1: P1's action
-        s1_dist = self._apply_action(s, a)
+        p1_attacks = (a == Action.P1_ATTACK)
+        a2         = self._opponent_policy(s)      # P2 observes original s
+        p2_attacks = (a2 == Action.P2_ATTACK)
 
-        # Step 2: P2's action (based on intermediate state after P1 acts)
+        # Combat from original (M1, M2) if either player attacks
+        if p1_attacks or p2_attacks:
+            combat_dist = {}
+            for (nm1, nm2), p in self._combat_lookup[(s.M1, s.M2)].items():
+                combat_dist[(nm1, nm2)] = combat_dist.get((nm1, nm2), 0.0) + p
+        else:
+            combat_dist = {(s.M1, s.M2): 1.0}
+
+        # Training deltas computed from original state
+        p1_deltas = self._training_deltas_p1(s, a)  if not p1_attacks else {(0, 0, 0): 1.0}
+        p2_deltas = self._training_deltas_p2(s, a2) if not p2_attacks else {(0, 0, 0): 1.0}
+
+        # Combine all effects simultaneously
         s2_dist = {}
-        for s1, p1 in s1_dist.items():
-            if s1.terminal:
-                s2_dist[s1] = s2_dist.get(s1, 0.0) + p1
-            else:
-                a2 = self._opponent_policy(s1)
-                for s2, p2 in self._apply_action(s1, a2).items():
-                    s2_dist[s2] = s2_dist.get(s2, 0.0) + p1 * p2
+        for (nm1, nm2), pc in combat_dist.items():
+            for (dW1, dM1, dR1), pp1 in p1_deltas.items():
+                for (dW2, dM2, dR2), pp2 in p2_deltas.items():
+                    M1f  = max(nm1 + dM1, 0)
+                    M2f  = max(nm2 + dM2, 0)
+                    W1f  = min(s.W1 + dW1, 10)
+                    W2f  = min(s.W2 + dW2, 10)
+                    R1f  = s.R1 + dR1
+                    R2f  = s.R2 + dR2
+                    term = 1 if (M1f == 0 or M2f == 0) else 0
+                    ns   = State(W1f, M1f, R1f, W2f, M2f, R2f, term)
+                    s2_dist[ns] = s2_dist.get(ns, 0.0) + pc * pp1 * pp2
 
-        # Step 3: Deterministic resource update
         result = {}
         for s2, p in s2_dist.items():
             sf = self._apply_resources(s2)
             result[sf] = result.get(sf, 0.0) + p
-
         return result
 
     def sample(self, s: State, a) -> State:
@@ -98,31 +113,23 @@ class TransitionModel:
         dist = self.transition(s, a)
         states = list(dist.keys())
         probs  = np.array(list(dist.values()), dtype=np.float64)
-        probs /= probs.sum()  # normalize to guard against floating-point drift
+        probs /= probs.sum()
         idx = np.random.choice(len(states), p=probs)
         return states[idx]
 
     def build_matrices(self) -> None:
         """Precompute full sparse transition matrices T[a] for all P1 actions.
-        Expensive (several minutes). Only needed by ValueIteration for T[a] @ V
-        matrix-vector products. QL and MCTS should use transition() / sample()."""
+        Expensive (several minutes). Only needed by ValueIteration."""
         self._T_base = self._build_base()
         self._T_res  = self._build_resource_matrix()
-        self._T_P2   = self._build_P2_matrix(self._opponent_policy)
-        self.T = {a: self._T_base[a] @ self._T_P2 @ self._T_res
-                  for a in self.ACTIONS_P1}
+        self.T = self._build_simultaneous_T(self._opponent_policy)
 
     def update_P2_policy(self, opponent_policy) -> None:
         """Recompose T after a P2 policy change. Requires matrices already built.
         opponent_policy may be a callable or an (n_states, 3) numpy array (mixed policy)."""
         self._opponent_policy = opponent_policy
         if self._T_base is not None:
-            if isinstance(opponent_policy, np.ndarray):
-                self._T_P2 = self._build_P2_matrix_mixed(opponent_policy)
-            else:
-                self._T_P2 = self._build_P2_matrix(opponent_policy)
-            self.T = {a: self._T_base[a] @ self._T_P2 @ self._T_res
-                      for a in self.ACTIONS_P1}
+            self.T = self._build_simultaneous_T(opponent_policy)
 
     def valid_act(self, a, s) -> bool:
         """Return True if action a is available from state s."""
@@ -136,46 +143,48 @@ class TransitionModel:
             return s.R2 > 0 and s.W2 < 10
         if a == Action.P2_TRAIN_MARINES:
             return s.R2 > 0 and s.M2 < 10
-        return True  # attacks always valid
+        return True
 
     def __getitem__(self, action):
         if not self.T:
             raise RuntimeError("Call build_matrices() before accessing T[action].")
         return self.T[action]
 
-    # ── Single-step helpers (used by transition()) ────────────────────────────
+    # ── Training delta helpers (shared with JointTransitionModel) ─────────────
 
-    def _apply_action(self, s: State, a) -> dict:
-        """Return {next_State: prob} for one player's action from state s."""
-        if a == Action.P1_ATTACK or a == Action.P2_ATTACK:
-            result = {}
-            for (nm1, nm2), p in self._combat_lookup[(s.M1, s.M2)].items():
-                term = 1 if (nm1 == 0 or nm2 == 0) else 0
-                sp = State(s.W1, nm1, s.R1, s.W2, nm2, s.R2, term)
-                result[sp] = result.get(sp, 0.0) + p
-            return result
+    def _training_deltas_p1(self, s: State, a: Action) -> dict:
+        """Return {(dW1, dM1, dR1): prob} for P1's training action from state s."""
+        if a == Action.P1_TRAIN_WORKERS:
+            if s.R1 < 1 or s.W1 > 9:
+                return {(0, 0, 0): 1.0}
+            dW1 = min(s.W1 + s.R1, 10) - s.W1
+            dR1 = -s.R1
+            return {(dW1, 0, dR1): 0.9, (0, 0, dR1): 0.1}
+        elif a == Action.P1_TRAIN_MARINES:
+            if s.R1 < 1 or s.M1 > 9:
+                return {(0, 0, 0): 1.0}
+            dM1 = min(s.M1 + s.R1, 10) - s.M1
+            dR1 = -s.R1
+            return {(0, dM1, dR1): 0.9, (0, 0, dR1): 0.1}
+        return {(0, 0, 0): 1.0}
 
-        invalid = (
-            (a == Action.P1_TRAIN_WORKERS and (s.R1 < 1 or s.W1 > 9)) or
-            (a == Action.P1_TRAIN_MARINES and (s.R1 < 1 or s.M1 > 9)) or
-            (a == Action.P2_TRAIN_WORKERS and (s.R2 < 1 or s.W2 > 9)) or
-            (a == Action.P2_TRAIN_MARINES and (s.R2 < 1 or s.M2 > 9))
-        )
-        if invalid:
-            return {s: 1.0}
+    def _training_deltas_p2(self, s: State, a: Action) -> dict:
+        """Return {(dW2, dM2, dR2): prob} for P2's training action from state s."""
+        if a == Action.P2_TRAIN_WORKERS:
+            if s.R2 < 1 or s.W2 > 9:
+                return {(0, 0, 0): 1.0}
+            dW2 = min(s.W2 + s.R2, 10) - s.W2
+            dR2 = -s.R2
+            return {(dW2, 0, dR2): 0.9, (0, 0, dR2): 0.1}
+        elif a == Action.P2_TRAIN_MARINES:
+            if s.R2 < 1 or s.M2 > 9:
+                return {(0, 0, 0): 1.0}
+            dM2 = min(s.M2 + s.R2, 10) - s.M2
+            dR2 = -s.R2
+            return {(0, dM2, dR2): 0.9, (0, 0, dR2): 0.1}
+        return {(0, 0, 0): 1.0}
 
-        dW1 = (min(s.W1 + s.R1, 10) - s.W1) if a == Action.P1_TRAIN_WORKERS else 0
-        dM1 = (min(s.M1 + s.R1, 10) - s.M1) if a == Action.P1_TRAIN_MARINES else 0
-        dR1 = -s.R1 if a == Action.P1_TRAIN_WORKERS or a == Action.P1_TRAIN_MARINES else 0
-        dW2 = (min(s.W2 + s.R2, 10) - s.W2) if a == Action.P2_TRAIN_WORKERS else 0
-        dM2 = (min(s.M2 + s.R2, 10) - s.M2) if a == Action.P2_TRAIN_MARINES else 0
-        dR2 = -s.R2 if a == Action.P2_TRAIN_WORKERS or a == Action.P2_TRAIN_MARINES else 0
-
-        sp_ok   = State(s.W1+dW1, s.M1+dM1, s.R1+dR1,
-                        s.W2+dW2, s.M2+dM2, s.R2+dR2, 0)
-        sp_fail = State(s.W1,     s.M1,     s.R1+dR1,
-                        s.W2,     s.M2,     s.R2+dR2, 0)
-        return {sp_ok: 0.9, sp_fail: 0.1}
+    # ── Single-step helper (still used by _apply_action path) ─────────────────
 
     @staticmethod
     def _apply_resources(s: State) -> State:
@@ -256,7 +265,7 @@ class TransitionModel:
             mat.eliminate_zeros()
             T[a] = mat
 
-        # ── Attack actions (same matrix for P1 and P2) ────────────────────────
+        # ── Attack action (same matrix for P1 and P2) ─────────────────────────
         group_key = f['M1'] * 11 + f['M2']
         non_term  = ~term
         all_rows, all_cols, all_vals = [], [], []
@@ -291,37 +300,6 @@ class TransitionModel:
 
         return T
 
-    def _build_P2_matrix(self, opponent_policy) -> csr_matrix:
-        states = self._states
-        n = len(states)
-        rows, cols, vals = [], [], []
-        a2s = {a: [] for a in self.ACTIONS_ALL}
-        for s_idx, s in enumerate(tqdm(states, desc="Applying P2 policy")):
-            a2s[opponent_policy(s)].append(s_idx)
-        for a, idxs in a2s.items():
-            if not idxs:
-                continue
-            idxs_arr = np.array(idxs)
-            sub = self._T_base[a][idxs_arr, :].tocoo()
-            rows.extend(idxs_arr[sub.row].tolist())
-            cols.extend(sub.col.tolist())
-            vals.extend(sub.data.tolist())
-        T_P2 = csr_matrix((vals, (rows, cols)), shape=(n, n))
-        T_P2.eliminate_zeros()
-        return T_P2
-
-    def _build_P2_matrix_mixed(self, sigma: np.ndarray) -> csr_matrix:
-        """Build T_P2 from a mixed policy sigma of shape (n_states, 3).
-        sigma[s, i] = probability of P2 action i at state s.
-        Column order matches Action.P2_ACTIONS: [train_workers, train_marines, attack]."""
-        from scipy.sparse import diags
-        T_P2 = None
-        for i, a2 in enumerate(self.ACTIONS_P2):
-            w = diags(sigma[:, i], format='csr')
-            contrib = w @ self._T_base[a2]
-            T_P2 = contrib if T_P2 is None else T_P2 + contrib
-        return T_P2.tocsr()
-
     def _build_resource_matrix(self) -> csr_matrix:
         f = self._extract_fields()
         n = len(self._states)
@@ -331,3 +309,197 @@ class TransitionModel:
         tgt = _to_idx(f['W1'], f['M1'], R1_new, f['W2'], f['M2'], R2_new, f['terminal'])
         tgt = np.where(f['terminal'] == 1, src, tgt)
         return csr_matrix((np.ones(n, dtype=np.float64), (src, tgt)), shape=(n, n))
+
+    def _build_simultaneous_T(self, policy) -> dict:
+        """Build T_sim[a1] for all P1 actions using simultaneous joint semantics.
+
+        T_sim[a1] = Σ_a2  diag(w_a2) @ JointBase(a1, a2) @ T_res
+
+        For a deterministic policy, w_a2[s] = 1 if π(s)=a2 else 0.
+        For a mixed policy (ndarray sigma), w_a2[s] = sigma[s, a2_idx].
+        Terminal states self-loop and are handled separately.
+        """
+        n = len(self._states)
+        term_arr = np.array([s.terminal for s in self._states], dtype=np.float64)
+        T_term   = diags(term_arr, format='csr')
+
+        if isinstance(policy, np.ndarray):
+            sigma = policy
+            # Zero terminal rows (terminals don't take actions)
+            sigma_nt = sigma * (1.0 - term_arr[:, None])
+            weights = {a2: sigma_nt[:, i] for i, a2 in enumerate(self.ACTIONS_P2)}
+        else:
+            w = {a2: np.zeros(n, dtype=np.float64) for a2 in self.ACTIONS_P2}
+            for i, s in enumerate(tqdm(self._states, desc="Applying P2 policy")):
+                if not s.terminal:
+                    w[policy(s)][i] = 1.0
+            weights = w
+
+        T_sim = {}
+        for a1 in self.ACTIONS_P1:
+            mat = csr_matrix((n, n), dtype=np.float64)
+            for a2 in self.ACTIONS_P2:
+                J = self._build_joint_base(a1, a2)
+                mat = mat + diags(weights[a2], format='csr') @ J
+            mat = (mat + T_term) @ self._T_res
+            T_sim[a1] = mat.tocsr()
+        return T_sim
+
+    def _build_joint_base(self, a1: Action, a2: Action) -> csr_matrix:
+        """Simultaneous joint base matrix for action pair (a1, a2), without resource update.
+
+        Most pairs affect independent state fields so the product T_base[a1] @ T_base[a2]
+        gives the correct simultaneous result. Three pairs require custom builders:
+          (ATK, ATK) — one round of combat, not two
+          (TM,  ATK) — P1 marine delta from original M1 combined with combat outcome
+          (ATK, TM)  — P2 marine delta from original M2 combined with combat outcome
+        """
+        p1_atk = (a1 == Action.P1_ATTACK)
+        p2_atk = (a2 == Action.P2_ATTACK)
+        p1_tm  = (a1 == Action.P1_TRAIN_MARINES)
+        p2_tm  = (a2 == Action.P2_TRAIN_MARINES)
+
+        if p1_atk and p2_atk:
+            return self._T_base[Action.P1_ATTACK]   # single combat round
+        if p1_tm and p2_atk:
+            return self._build_joint_tm_atk()
+        if p1_atk and p2_tm:
+            return self._build_joint_atk_tm()
+        # All remaining pairs touch independent fields — product is correct
+        return (self._T_base[a1] @ self._T_base[a2]).tocsr()
+
+    def _build_joint_tm_atk(self) -> csr_matrix:
+        """Joint base: P1 trains marines + P2 attacks simultaneously.
+
+        Combat resolves from original (M1, M2). P1's marine training delta is
+        computed from original M1 and added to the post-combat nm1.
+        """
+        f        = self._extract_fields()
+        n        = len(self._states)
+        term     = f['terminal'].astype(bool)
+        non_term = ~term
+
+        valid    = non_term & (f['R1'] >= 1) & (f['M1'] <= 9)
+        dM1_ok   = np.where(valid, np.minimum(f['M1'] + f['R1'], 10) - f['M1'], 0)
+        R1_after = np.where(valid, np.int64(0), f['R1'])
+
+        all_rows, all_cols, all_vals = [], [], []
+        group_key = f['M1'] * 11 + f['M2']
+
+        for key in range(121):
+            m1, m2 = divmod(key, 11)
+            idxs = np.where(non_term & (group_key == key))[0]
+            if len(idxs) == 0:
+                continue
+            for (nm1, nm2), p in self._combat_lookup[(m1, m2)].items():
+                v      = valid[idxs]
+                v_idxs = idxs[v]
+
+                if len(v_idxs):
+                    # Training success
+                    M1f_ok = np.maximum(nm1 + dM1_ok[v_idxs], 0)
+                    M2f    = np.full(len(v_idxs), nm2, dtype=np.int64)
+                    t_ok   = ((M1f_ok == 0) | (M2f == 0)).astype(np.int64)
+                    tgt_ok = _to_idx(f['W1'][v_idxs], M1f_ok, R1_after[v_idxs],
+                                     f['W2'][v_idxs], M2f, f['R2'][v_idxs], t_ok)
+                    all_rows.append(v_idxs);  all_cols.append(tgt_ok)
+                    all_vals.append(np.full(len(v_idxs), p * 0.9))
+
+                    # Training fail
+                    M1f_fail = np.full(len(v_idxs), nm1, dtype=np.int64)
+                    t_fail   = ((M1f_fail == 0) | (M2f == 0)).astype(np.int64)
+                    tgt_fail = _to_idx(f['W1'][v_idxs], M1f_fail, R1_after[v_idxs],
+                                       f['W2'][v_idxs], M2f, f['R2'][v_idxs], t_fail)
+                    all_rows.append(v_idxs);  all_cols.append(tgt_fail)
+                    all_vals.append(np.full(len(v_idxs), p * 0.1))
+
+                # Invalid training (no training attempted)
+                inv_idxs = idxs[~v]
+                if len(inv_idxs):
+                    M1f = np.full(len(inv_idxs), nm1, dtype=np.int64)
+                    M2f = np.full(len(inv_idxs), nm2, dtype=np.int64)
+                    t   = ((M1f == 0) | (M2f == 0)).astype(np.int64)
+                    tgt = _to_idx(f['W1'][inv_idxs], M1f, f['R1'][inv_idxs],
+                                  f['W2'][inv_idxs], M2f, f['R2'][inv_idxs], t)
+                    all_rows.append(inv_idxs);  all_cols.append(tgt)
+                    all_vals.append(np.full(len(inv_idxs), p))
+
+        term_idxs = np.where(term)[0]
+        if len(term_idxs):
+            all_rows.append(term_idxs);  all_cols.append(term_idxs)
+            all_vals.append(np.ones(len(term_idxs)))
+
+        mat = csr_matrix((np.concatenate(all_vals),
+                          (np.concatenate(all_rows), np.concatenate(all_cols))),
+                         shape=(n, n))
+        mat.sum_duplicates()
+        mat.eliminate_zeros()
+        return mat
+
+    def _build_joint_atk_tm(self) -> csr_matrix:
+        """Joint base: P1 attacks + P2 trains marines simultaneously.
+
+        Combat resolves from original (M1, M2). P2's marine training delta is
+        computed from original M2 and added to the post-combat nm2.
+        """
+        f        = self._extract_fields()
+        n        = len(self._states)
+        term     = f['terminal'].astype(bool)
+        non_term = ~term
+
+        valid    = non_term & (f['R2'] >= 1) & (f['M2'] <= 9)
+        dM2_ok   = np.where(valid, np.minimum(f['M2'] + f['R2'], 10) - f['M2'], 0)
+        R2_after = np.where(valid, np.int64(0), f['R2'])
+
+        all_rows, all_cols, all_vals = [], [], []
+        group_key = f['M1'] * 11 + f['M2']
+
+        for key in range(121):
+            m1, m2 = divmod(key, 11)
+            idxs = np.where(non_term & (group_key == key))[0]
+            if len(idxs) == 0:
+                continue
+            for (nm1, nm2), p in self._combat_lookup[(m1, m2)].items():
+                v      = valid[idxs]
+                v_idxs = idxs[v]
+
+                if len(v_idxs):
+                    # Training success
+                    M1f    = np.full(len(v_idxs), nm1, dtype=np.int64)
+                    M2f_ok = np.maximum(nm2 + dM2_ok[v_idxs], 0)
+                    t_ok   = ((M1f == 0) | (M2f_ok == 0)).astype(np.int64)
+                    tgt_ok = _to_idx(f['W1'][v_idxs], M1f, f['R1'][v_idxs],
+                                     f['W2'][v_idxs], M2f_ok, R2_after[v_idxs], t_ok)
+                    all_rows.append(v_idxs);  all_cols.append(tgt_ok)
+                    all_vals.append(np.full(len(v_idxs), p * 0.9))
+
+                    # Training fail
+                    M2f_fail = np.full(len(v_idxs), nm2, dtype=np.int64)
+                    t_fail   = ((M1f == 0) | (M2f_fail == 0)).astype(np.int64)
+                    tgt_fail = _to_idx(f['W1'][v_idxs], M1f, f['R1'][v_idxs],
+                                       f['W2'][v_idxs], M2f_fail, R2_after[v_idxs], t_fail)
+                    all_rows.append(v_idxs);  all_cols.append(tgt_fail)
+                    all_vals.append(np.full(len(v_idxs), p * 0.1))
+
+                # Invalid training
+                inv_idxs = idxs[~v]
+                if len(inv_idxs):
+                    M1f = np.full(len(inv_idxs), nm1, dtype=np.int64)
+                    M2f = np.full(len(inv_idxs), nm2, dtype=np.int64)
+                    t   = ((M1f == 0) | (M2f == 0)).astype(np.int64)
+                    tgt = _to_idx(f['W1'][inv_idxs], M1f, f['R1'][inv_idxs],
+                                  f['W2'][inv_idxs], M2f, f['R2'][inv_idxs], t)
+                    all_rows.append(inv_idxs);  all_cols.append(tgt)
+                    all_vals.append(np.full(len(inv_idxs), p))
+
+        term_idxs = np.where(term)[0]
+        if len(term_idxs):
+            all_rows.append(term_idxs);  all_cols.append(term_idxs)
+            all_vals.append(np.ones(len(term_idxs)))
+
+        mat = csr_matrix((np.concatenate(all_vals),
+                          (np.concatenate(all_rows), np.concatenate(all_cols))),
+                         shape=(n, n))
+        mat.sum_duplicates()
+        mat.eliminate_zeros()
+        return mat

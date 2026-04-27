@@ -106,36 +106,4 @@ class JointTransitionModel(TransitionModel):
         idx = np.random.choice(len(states_list), p=probs)
         return states_list[idx]
 
-    # ── Private helpers ───────────────────────────────────────────────────────
-
-    def _training_deltas_p1(self, s: State, a: Action) -> dict:
-        """Return {(dW1, dM1, dR1): prob} for P1's training action from state s."""
-        if a == Action.P1_TRAIN_WORKERS:
-            if s.R1 < 1 or s.W1 > 9:
-                return {(0, 0, 0): 1.0}
-            dW1 = min(s.W1 + s.R1, 10) - s.W1
-            dR1 = -s.R1
-            return {(dW1, 0, dR1): 0.9, (0, 0, dR1): 0.1}
-        elif a == Action.P1_TRAIN_MARINES:
-            if s.R1 < 1 or s.M1 > 9:
-                return {(0, 0, 0): 1.0}
-            dM1 = min(s.M1 + s.R1, 10) - s.M1
-            dR1 = -s.R1
-            return {(0, dM1, dR1): 0.9, (0, 0, dR1): 0.1}
-        return {(0, 0, 0): 1.0}
-
-    def _training_deltas_p2(self, s: State, a: Action) -> dict:
-        """Return {(dW2, dM2, dR2): prob} for P2's training action from state s."""
-        if a == Action.P2_TRAIN_WORKERS:
-            if s.R2 < 1 or s.W2 > 9:
-                return {(0, 0, 0): 1.0}
-            dW2 = min(s.W2 + s.R2, 10) - s.W2
-            dR2 = -s.R2
-            return {(dW2, 0, dR2): 0.9, (0, 0, dR2): 0.1}
-        elif a == Action.P2_TRAIN_MARINES:
-            if s.R2 < 1 or s.M2 > 9:
-                return {(0, 0, 0): 1.0}
-            dM2 = min(s.M2 + s.R2, 10) - s.M2
-            dR2 = -s.R2
-            return {(0, dM2, dR2): 0.9, (0, 0, dR2): 0.1}
-        return {(0, 0, 0): 1.0}
+    # _training_deltas_p1 and _training_deltas_p2 are inherited from TransitionModel
