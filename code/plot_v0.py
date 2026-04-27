@@ -31,7 +31,7 @@ mcts_eval = MCTSSolver(env, c=sqrt(2), depth=20, num_runs=200)
 
 # ── Win-rate helpers ──────────────────────────────────────────────────────────
 
-N_EVAL = 50
+N_EVAL = 100
 
 def _wilson_ci(p, n, z=1.96):
     denom  = 1 + z**2 / n
@@ -107,12 +107,15 @@ for label, π in zip(solvers, policies):
 bw = 0.25
 fig3, ax3 = plt.subplots(figsize=(9, 5))
 x = np.arange(len(solvers))
-ax3.bar(x - bw, wins3,   bw, label='Win',  color='steelblue',
-        yerr=_bar_yerr(wins3,   N_EVAL), capsize=4, error_kw={'elinewidth': 1})
-ax3.bar(x,      losses3, bw, label='Loss', color='tomato',
-        yerr=_bar_yerr(losses3, N_EVAL), capsize=4, error_kw={'elinewidth': 1})
-ax3.bar(x + bw, draws3,  bw, label='Draw', color='gray',
-        yerr=_bar_yerr(draws3,  N_EVAL), capsize=4, error_kw={'elinewidth': 1})
+c_win = ax3.bar(x - bw, wins3,   bw, label='Win',  color='steelblue',
+               yerr=_bar_yerr(wins3,   N_EVAL), capsize=4, error_kw={'elinewidth': 1})
+c_los = ax3.bar(x,      losses3, bw, label='Loss', color='tomato',
+               yerr=_bar_yerr(losses3, N_EVAL), capsize=4, error_kw={'elinewidth': 1})
+c_drw = ax3.bar(x + bw, draws3,  bw, label='Draw', color='gray',
+               yerr=_bar_yerr(draws3,  N_EVAL), capsize=4, error_kw={'elinewidth': 1})
+ax3.bar_label(c_win, labels=[str(round(p * N_EVAL)) for p in wins3],   padding=3, fontsize=8)
+ax3.bar_label(c_los, labels=[str(round(p * N_EVAL)) for p in losses3], padding=3, fontsize=8)
+ax3.bar_label(c_drw, labels=[str(round(p * N_EVAL)) for p in draws3],  padding=3, fontsize=8)
 ax3.set_xticks(x)
 ax3.set_xticklabels(solvers)
 ax3.set_xlabel('Solver')
