@@ -18,7 +18,7 @@ class ValueIteration(Solver):
         self.v0_history = []
         self.policy = None
 
-    def solve(self) -> DictPolicy:
+    def solve(self, initial_V=None) -> DictPolicy:
         if not self.env.transition_model.T:
             self.env.transition_model.build_matrices()
         S, A, T, R, γ = self.env.S, self.env.A, self.env.T, self.env.R, self.env.γ
@@ -26,7 +26,8 @@ class ValueIteration(Solver):
         term_mask = np.array([s.terminal == 1 for s in S])
         term_vals = np.array([s.terminal_value() if s.terminal else 0.0 for s in S])
 
-        V = term_vals.copy()
+        V = initial_V.copy() if initial_V is not None else term_vals.copy()
+        V[term_mask] = term_vals[term_mask]
         it, start = 0, time.time()
 
         R_nonterminal = np.where(term_mask, 0.0, R)
@@ -72,12 +73,15 @@ if __name__ == '__main__':
     π_star = solver.solve()
     print("Done.")
 
-    for _ in range(5):
-        env.simulate(π_star, label='Value Iteration')
+    n_games = 20
+    results = [env.simulate(π_star, label='Value Iteration') for _ in range(n_games)]
 
-    # Also test against a P2 that uses the same VI-derived policy
-    π_P2_vi = P2_policy_converter(π_star)
-    env.update_P2_policy(π_P2_vi)
-    print("\nVI policy vs VI-derived P2:")
-    for _ in range(3):
-        env.simulate(π_star, label='Value Iteration')
+    p1_wins = results.count('P1')
+    p2_wins = results.count('P2')
+    draws   = results.count('Draw')
+    print(f"\n{'='*40}")
+    print(f"  Results over {n_games} games")
+    print(f"{'='*40}")
+    print(f"  P1 wins: {p1_wins}/{n_games} ({100*p1_wins/n_games:.0f}%)")
+    print(f"  P2 wins: {p2_wins}/{n_games} ({100*p2_wins/n_games:.0f}%)")
+    print(f"  Draws:   {draws}/{n_games} ({100*draws/n_games:.0f}%)")

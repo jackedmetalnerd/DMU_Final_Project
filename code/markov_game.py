@@ -30,6 +30,8 @@ from action import Action
 from markov_game_env import MarkovGameEnv
 from markov_game_mcts import MarkovGameMCTSSolver
 from policies import alternating_training_attack
+from policy import SymmetricPolicy
+from value_iteration import ValueIteration
 
 
 # ── Default bootstrap policies ────────────────────────────────────────────────
@@ -149,19 +151,109 @@ class MarkovGameSolver:
         return results
 
 
+# ── VIMarkovGameSolver ────────────────────────────────────────────────────────
+
+class VIMarkovGameSolver:
+    """Alternating Best Response solver using Value Iteration as the oracle.
+
+    Odd games: P1 runs VI against current P2 estimate, producing an exact P1
+    best response. Even games: P2 runs VI (via state inversion) against the
+    current P1 policy, producing an exact P2 best response.
+
+    After each VI solve the updated policy is used to simulate the game and
+    the winner is recorded. Because VI is exact (not approximate like MCTS),
+    each policy is the true best response to the opponent's current strategy.
+
+    Parameters
+    ----------
+    env       : MarkovGameEnv
+    num_games : int   -- total games to play (one VI solve per game)
+    vi_tol    : float -- VI convergence tolerance
+    max_turns : int   -- max turns per simulated game before draw
+    """
+
+    def __init__(
+        self,
+        env: MarkovGameEnv,
+        num_games: int = 4,
+        vi_tol: float = 1e-9,
+        max_turns: int = 50,
+    ):
+        self.env       = env
+        self.num_games = num_games
+        self.vi_tol    = vi_tol
+        self.max_turns = max_turns
+
+    def run(self, p1_estimate=None, p2_estimate=None) -> list:
+        """Run alternating VI best response for num_games; return list of winners.
+
+        Parameters
+        ----------
+        p1_estimate : callable(State) -> P1 Action, optional
+            Initial P1 policy used as P2's opponent on even games.
+            Defaults to _default_p1_policy.
+        p2_estimate : callable(State) -> P2 Action, optional
+            Initial P2 policy used as P1's opponent on odd games.
+            Defaults to alternating_training_attack.
+
+        Returns
+        -------
+        list[str] : winner of each game ('P1', 'P2', or 'Draw')
+        """
+        if p1_estimate is None:
+            p1_estimate = _default_p1_policy
+        if p2_estimate is None:
+            p2_estimate = alternating_training_attack
+
+        results = []
+
+        for game_num in range(1, self.num_games + 1):
+            print(f"\n{'=' * 70}")
+            print(f"  GAME {game_num} / {self.num_games}  (VI Alternating Best Response)")
+            print(f"{'=' * 70}")
+
+            if game_num % 2 == 1:
+                print(f"  P1 running Value Iteration against fixed P2 policy...")
+                p1_env      = self.env.as_p1_gameenv(p2_estimate)
+                vi          = ValueIteration(p1_env, tol=self.vi_tol)
+                p1_estimate = vi.solve()
+                print(f"  P1 best response computed.")
+            else:
+                print(f"  P2 running Value Iteration against fixed P1 policy...")
+                p2_env      = self.env.as_p2_gameenv(p1_estimate)
+                vi          = ValueIteration(p2_env, tol=self.vi_tol)
+                p2_estimate = SymmetricPolicy(vi.solve())
+                print(f"  P2 best response computed.")
+
+            winner = self.env.simulate(p1_estimate, p2_estimate, self.max_turns)
+            results.append(winner)
+
+        p1_wins = results.count('P1')
+        p2_wins = results.count('P2')
+        draws   = results.count('Draw')
+        print(f"\n{'=' * 70}")
+        print(f"  RESULTS SUMMARY ({self.num_games} games, VI ABR)")
+        print(f"{'=' * 70}")
+        for i, r in enumerate(results, 1):
+            print(f"  Game {i}: {r}")
+        print(f"\n  P1 wins: {p1_wins}/{self.num_games}")
+        print(f"  P2 wins: {p2_wins}/{self.num_games}")
+        print(f"  Draws:   {draws}/{self.num_games}")
+
+        return results
+
+
 # ── __main__ ──────────────────────────────────────────────────────────────────
 
 if __name__ == '__main__':
     print("Initializing MarkovGameEnv...")
     env = MarkovGameEnv()
 
-    print("Running dual-MCTS Markov game simulation (Alternating Best Response)...")
-    solver = MarkovGameSolver(
+    print("Running VI Alternating Best Response...")
+    solver = VIMarkovGameSolver(
         env,
-        num_games= 10,
-        mcts_c=sqrt(3),
-        mcts_depth=50,
-        mcts_runs=5_000,
+        num_games=4,
+        vi_tol=1e-9,
         max_turns=50,
     )
     solver.run()

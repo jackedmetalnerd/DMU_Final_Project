@@ -8,18 +8,15 @@ a2 from a fixed opponent_policy. JointTransitionModel adds joint_transition and
 joint_sample that take both player actions explicitly, without any fixed policy.
 
 Inherits from TransitionModel to reuse:
-  _apply_action(s, a)    -- single-player action distribution (works for P1 or P2)
   _apply_resources(s)    -- deterministic resource update
   _precompute_combat()   -- binomial combat lookup table (symmetric, built once)
   _combat_lookup         -- dict[(m1, m2)] -> dict[(nm1, nm2), prob]
-  valid_act(a, s)        -- action validity check for either player
 
-Does NOT use the parent's transition(s, a1) or build_matrices() -- those embed
-a fixed P2 policy. A dummy policy is passed to the parent constructor to satisfy
-its signature; it raises RuntimeError if accidentally called.
-
-Sequential action order (consistent with TransitionModel convention):
-  P1 acts first → P2 acts on post-P1 state → resources update deterministically
+Actions are resolved SIMULTANEOUSLY (standard Markov game semantics):
+  - Combat (if either player attacks) uses original (M1, M2)
+  - Training uses original resources and troop counts
+  - Effects are combined additively: M1_final = M1_post_combat + M1_trained
+  - Resources update deterministically after all actions resolve
 """
 
 import numpy as np
@@ -29,7 +26,7 @@ from action import Action
 
 
 class JointTransitionModel(TransitionModel):
-    """Transition model for 2-player Markov games with explicit joint actions.
+    """Transition model for 2-player Markov games with simultaneous joint actions.
 
     Parameters
     ----------
@@ -49,37 +46,50 @@ class JointTransitionModel(TransitionModel):
     # ── Public interface ──────────────────────────────────────────────────────
 
     def joint_transition(self, s: State, a1: Action, a2: Action) -> dict:
-        """Return {next_State: probability} for explicit joint action (a1, a2).
+        """Return {next_State: probability} for simultaneous joint action (a1, a2).
 
-        Steps (mirror parent's transition but with a2 explicit):
-          1. Apply P1's action a1 to s         -> s1_dist
-          2. Apply P2's action a2 to each s1   -> s2_dist  (explicit, not from policy)
-          3. Deterministic resource update      -> result
+        All effects are evaluated from the original state s:
+          1. Combat (if either player attacks): one round from original (M1, M2)
+          2. Training deltas: computed from original resources/troops
+          3. Effects combined: M1_final = M1_post_combat + dM1_train, etc.
+          4. Resource update deterministically
 
         If s is already terminal, returns {s: 1.0} (absorbing).
-        If s1 is terminal after P1's action, P2's action is skipped for that branch.
-
-        Simultaneous-attack note: when both players attack, they are applied
-        sequentially (P1 first). P2's attack is resolved on the post-P1-combat
-        state. This matches the existing TransitionModel convention.
         """
         if s.terminal:
             return {s: 1.0}
 
-        # Step 1: P1 action
-        s1_dist = self._apply_action(s, a1)
+        p1_attacks = (a1 == Action.P1_ATTACK)
+        p2_attacks = (a2 == Action.P2_ATTACK)
 
-        # Step 2: P2 action (explicit a2, not sampled from a policy)
+        # ── Step 1: Combat from original state (one round) ────────────────────
+        if p1_attacks or p2_attacks:
+            combat_dist = {}
+            for (nm1, nm2), p in self._combat_lookup[(s.M1, s.M2)].items():
+                combat_dist[(nm1, nm2)] = combat_dist.get((nm1, nm2), 0.0) + p
+        else:
+            combat_dist = {(s.M1, s.M2): 1.0}
+
+        # ── Step 2: Training deltas from original state ───────────────────────
+        p1_deltas = self._training_deltas_p1(s, a1) if not p1_attacks else {(0, 0, 0): 1.0}
+        p2_deltas = self._training_deltas_p2(s, a2) if not p2_attacks else {(0, 0, 0): 1.0}
+
+        # ── Step 3: Combine all effects ───────────────────────────────────────
         s2_dist = {}
-        for s1, p1 in s1_dist.items():
-            if s1.terminal:
-                # P1 already won/lost; P2 cannot act
-                s2_dist[s1] = s2_dist.get(s1, 0.0) + p1
-            else:
-                for s2, p2 in self._apply_action(s1, a2).items():
-                    s2_dist[s2] = s2_dist.get(s2, 0.0) + p1 * p2
+        for (nm1, nm2), pc in combat_dist.items():
+            for (dW1, dM1, dR1), pp1 in p1_deltas.items():
+                for (dW2, dM2, dR2), pp2 in p2_deltas.items():
+                    M1f = max(nm1 + dM1, 0)
+                    M2f = max(nm2 + dM2, 0)
+                    W1f = min(s.W1 + dW1, 10)
+                    W2f = min(s.W2 + dW2, 10)
+                    R1f = s.R1 + dR1
+                    R2f = s.R2 + dR2
+                    term = 1 if (M1f == 0 or M2f == 0) else 0
+                    ns = State(W1f, M1f, R1f, W2f, M2f, R2f, term)
+                    s2_dist[ns] = s2_dist.get(ns, 0.0) + pc * pp1 * pp2
 
-        # Step 3: Deterministic resource update
+        # ── Step 4: Deterministic resource update ─────────────────────────────
         result = {}
         for s2, p in s2_dist.items():
             sf = self._apply_resources(s2)
@@ -92,6 +102,8 @@ class JointTransitionModel(TransitionModel):
         dist = self.joint_transition(s, a1, a2)
         states_list = list(dist.keys())
         probs = np.array(list(dist.values()), dtype=np.float64)
-        probs /= probs.sum()  # guard against floating-point drift
+        probs /= probs.sum()
         idx = np.random.choice(len(states_list), p=probs)
         return states_list[idx]
+
+    # _training_deltas_p1 and _training_deltas_p2 are inherited from TransitionModel
