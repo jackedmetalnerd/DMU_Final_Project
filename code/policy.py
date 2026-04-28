@@ -135,3 +135,14 @@ class POMCPPolicy(Policy):
 
     def reset(self):
         self._solver.reset()
+
+
+def load_mixed_policy(path, states, actions):
+    """Load a (n_states, n_actions) mixed strategy .npy file → stochastic callable."""
+    sigma = np.load(path)
+    state_index = {s: i for i, s in enumerate(states)}
+    class _Loaded(Policy):
+        def __call__(self, s):
+            probs = sigma[state_index[s]]
+            return actions[np.random.choice(len(actions), p=probs)]
+    return _Loaded()
