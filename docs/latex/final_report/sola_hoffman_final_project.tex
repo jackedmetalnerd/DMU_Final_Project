@@ -55,12 +55,12 @@ where both players have dynamic gameplay policies. The Markov Game is solved usi
 fictitious self-play, in which each player iteratively best-responds against the running
 average of all past opponent policies, guaranteeing convergence to a Nash equilibrium in
 this zero-sum setting. The third tier would combine the MG and POMDP into a Partially
-Observable Stochastic Game (POSG). Among MDP solvers, value iteration achieved the highest win rate but at the cost
-of full state-space enumeration; DQN approached comparable performance with
-significantly better scalability. Under partial observability, QMDP proved
-robust to limited opponent state information but brittle to opponent policy
-mismatch, where POMCP's online planning maintained stronger performance by
-avoiding reliance on a precomputed value function.
+Observable Stochastic Game (POSG). Among MDP solvers, value iteration achieved the 
+highest win rate but at the cost of full state-space enumeration; DQN approached 
+comparable performance with significantly better scalability. Under partial observability, 
+QMDP proved robust to limited opponent state information but brittle to opponent policy
+mismatch, where POMCP's online planning maintained stronger performance by avoiding 
+reliance on a precomputed value function.
 \hl{summarize MG and POSG results}
 
 % -----------------------------------------------------------------------
@@ -411,12 +411,13 @@ it converges to the optimal value function, from which a greedy policy can be
 directly extracted. However, this performance comes at the cost of additional
 computation time, since the value iteration solution method iterates over the
 entire state space, where approximate solvers need only a sufficient sample of
-states. For the current state dimensions, this is very tractable, converging in approximately 30 seconds, but future increases in complexity -
+states. For the current state dimensions, this is very tractable, converging 
+in approximately 30 seconds, but future increases in complexity -
 higher troop or resource limits, more types of personnel, more action options,
 etc. - can increase the state space size exponentially, and value iteration
 would quickly become intractable as it scales with $|\mathcal{S}|^2$. Q-learning scales
 better than value iteration ($|\mathcal{S}|$), but this could still become intractable, and
-as seen in Figure~\ref{fig:mdp-solvers} Q-learning performs worse than all other 
+as seen in Figure~\ref{fig:mdp-solvers} Q-learning shows the worst performance of the  
 implemented solvers. DQN and MCTS both attempt to minimize this curse of 
 dimensionality: MCTS by exploring only a tree of reachable states, which would 
 scale well to large state spaces, though it trades quality for this scalability, 
@@ -487,19 +488,19 @@ but here the enemy state remained fully unobservable (\texttt{n\_obs\_levels=1})
 \includegraphics[width=\columnwidth]{fig_mismatch}
 \caption{Performance Under P2 Model Mismatch (planner assumes
 uniform-random P2; simulation uses \texttt{alternating\_training\_attack}).
-  Error bars show 95\% Wilson confidence intervals.}
+  Error bars show 95\% confidence intervals.}
 \label{fig:mismatch}
 \end{figure}
 
 The introduction of policy uncertainty significantly decreases QMDP's win
 rate, indicating that this POMDP solution method is brittle to an inaccurate
 value function - unsurprisingly for an offline planner. POMCP's results, as
-an online planner, are markedly different: its Monte Carlo-based estimation
-of the expected value of a state is not as accurate as a well-built value
-lookup table, so POMCP's performance lags QMDP's slightly in the baseline 
-case. POMCP, however, can build a reasonably accurate value estimate regardless 
-of the prior knowledge QMDP relies on, and its higher performance in the 
-``mismatch'' scenario, turning losses into draws, if not wins, demonstrates 
+an online planner, are markedly different: it slightly outperforms QMDP in the
+baseline case (within the margin of error), but takes significantly longer to
+run - approximately 3x QMDP's runtime - as its Monte Carlo-based estimate of 
+the value of a state must be built at each step. POMCP, however, can build a 
+reasonably accurate value estimate regardless of the prior knowledge QMDP 
+relies on, and its higher performance in the ``mismatch'' scenario demonstrates 
 this robustness.
 
 \subsection{Markov Game}
