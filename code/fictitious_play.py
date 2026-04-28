@@ -28,6 +28,7 @@ import time
 from action import Action
 from markov_game_env import MarkovGameEnv
 from policies import alternating_training_attack
+from policy import save_mixed_policy
 from state import State
 from value_iteration import ValueIteration
 
@@ -233,12 +234,16 @@ if __name__ == '__main__':
 
     solver = FictitiousPlay(
         mg_env,
-        n_iters=50,
+        n_iters=100,
         vi_tol=1e-9,
-        max_turns=50,
+        max_turns=1000,
     )
 
     v1_history, sigma1, sigma2 = solver.run()
+
+    # ── Save policies ─────────────────────────────────────────────────────────
+    save_mixed_policy(sigma1, 'fsp_sigma_p1.npy')
+    save_mixed_policy(sigma2, 'fsp_sigma_p2.npy')
 
     # ── Convergence plot ──────────────────────────────────────────────────────
     plt.figure(figsize=(7, 4))
@@ -266,12 +271,12 @@ if __name__ == '__main__':
         f"{n}={sigma2[s0_i, j]:.3f}" for j, n in enumerate(action_names)))
 
     # ── Simulations with final mixed policies ─────────────────────────────────
-    n_sims = 50
+    n_sims = 1000
     print(f"\nSimulating {n_sims} games with final mixed policies...")
     p1_mixed = MixedPolicy(sigma1, state_idx, Action.P1_ACTIONS)
     p2_mixed = MixedPolicy(sigma2, state_idx, Action.P2_ACTIONS)
 
-    results = [mg_env.simulate(p1_policy=p1_mixed, p2_policy=p2_mixed, max_turns=50)
+    results = [mg_env.simulate(p1_policy=p1_mixed, p2_policy=p2_mixed, max_turns=1000)
                for _ in range(n_sims)]
 
     p1_wins = results.count('P1')
