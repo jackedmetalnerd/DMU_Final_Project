@@ -22,7 +22,7 @@ from action import Action
 
 S_INIT = State(W1=1, M1=1, R1=1, W2=1, M2=1, R2=1, terminal=0)
 N_GAMES    = 100
-STEP_LIMIT = 50
+STEP_LIMIT = 500
 
 P2_ACTIONS = [Action.P2_TRAIN_WORKERS, Action.P2_TRAIN_MARINES, Action.P2_ATTACK]
 random_P2  = FunctionPolicy(lambda s: np.random.choice(P2_ACTIONS))
@@ -77,7 +77,6 @@ def _share_matrices(src, dst):
     sm, tm = src.transition_model, dst.transition_model
     tm._T_base = sm._T_base
     tm._T_res  = sm._T_res
-    tm._T_P2   = sm._T_P2
     tm.T       = sm.T
 
 
@@ -109,6 +108,11 @@ vi_det.solve()
 
 print("\nVI solve 2/2: random P2 (mismatch planning model)...")
 env_plan = POMDPEnv(opponent_policy=random_P2, initial_state=S_INIT, n_obs_levels=1)
+# Reuse T_base and T_res — identical for any P2 policy; only T_combined differs
+tm_plan, tm_det = env_plan.transition_model, env_det.transition_model
+tm_plan._T_base = tm_det._T_base
+tm_plan._T_res  = tm_det._T_res
+tm_plan.T       = tm_plan._build_simultaneous_T(tm_plan._opponent_policy)
 vi_plan  = ValueIteration(env_plan)
 vi_plan.solve()
 env_plan.transition_model.build_uniform_P2()

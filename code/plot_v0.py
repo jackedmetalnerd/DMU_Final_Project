@@ -26,7 +26,7 @@ mcts = MCTSSolver(env, c=sqrt(2), depth=50, num_runs=10000)
 mcts.get_action(S_INIT)
 
 # Separate lighter MCTS solver for win-rate evaluation (1000 runs/move)
-mcts_eval = MCTSSolver(env, c=sqrt(2), depth=20, num_runs=200)
+mcts_eval = MCTSSolver(env, c=sqrt(2), depth=50, num_runs=1000)
 π_mcts_eval = mcts_eval.solve()
 
 # ── Win-rate helpers ──────────────────────────────────────────────────────────
@@ -51,7 +51,7 @@ def _measure_win_rate(policy, n_games=N_EVAL):
     wins = losses = draws = 0
     for _ in range(n_games):
         s = S_INIT
-        for _ in range(50):
+        for _ in range(500):
             if s.terminal:
                 break
             if hasattr(policy, '_solver'):
@@ -120,7 +120,7 @@ ax3.set_xticks(x)
 ax3.set_xticklabels(solvers)
 ax3.set_xlabel('Solver')
 ax3.set_ylabel('Rate')
-ax3.set_title(f'Win rates by solver (n={N_EVAL} games, 95% Wilson CI)')
+ax3.set_title(f'Win rates by solver (n={N_EVAL} games)')
 ax3.set_ylim(0, 1)
 ax3.legend()
 fig3.tight_layout()

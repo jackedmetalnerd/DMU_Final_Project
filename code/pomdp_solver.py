@@ -34,21 +34,16 @@ class QMDPSolver(Solver):
         super().__init__(env)
         self.V = V
         self.γ = γ
+        self._Q_vec = None
 
     def solve(self):
+        R = self.env.reward.build_vector(self.env.states)
+        self._Q_vec = {a: self.env.transition_model.T[a].dot(R + self.γ * self.V)
+                       for a in self.env.A}
         return BeliefPolicy(self)
-    
+
     def get_action(self, belief):
-        best_a = None
-        best_Q = -np.inf
-        for a in self.env.A:
-            T = self.env.transition_model.T[a] #transition for this action
-            Q = belief @ (self.env.reward.build_vector(self.env.states)
-                          + self.γ * T.dot(self.V)) #matrix Q update
-            if Q > best_Q:
-                best_Q = Q
-                best_a = a
-        return best_a
+        return max(self.env.A, key=lambda a: float(belief @ self._Q_vec[a]))
     
     @property
     def name(self):
@@ -92,6 +87,8 @@ class POMCPSolver(Solver):
     def update(self, a, o):
         #history stepper
         self._h = self._h + ((str(a), o),)
+        self._B.pop(self._h, None) #force re-sample from belief next step
+
 
     # In-facing fcts
     def _sample_particles(self, belief, n):
@@ -110,13 +107,15 @@ class POMCPSolver(Solver):
                     )
     
     def _rollout(self, s, depth):
-        #recursive rollout fct for MCTS
-        if depth <= 0 or s.terminal:
-            return self.env.reward.evaluate(s)
-        valid = [a for a in self.env.A if self.env.valid_act(a, s)]
-        a = random.choice(valid)
-        sp, o, r = self.env.step(s, a)
-        return  r + self.env.γ * self._rollout(sp, depth-1)
+        total, discount = 0.0, 1.0
+        for _ in range(depth):
+            if s.terminal:
+                break
+            a = random.choice(self.env.A)
+            s, _, r = self.env.step(s, a)
+            total += discount * r
+            discount *= self.env.γ
+        return total
     
     def _simulate(self, s, h, depth):
         #run one MCTS simulation

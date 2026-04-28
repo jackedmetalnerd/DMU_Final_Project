@@ -179,11 +179,10 @@ class DQNSolver(Solver):
     @staticmethod
     def _encode(s: State) -> torch.Tensor:
         """Convert a State to a normalized float32 tensor of shape (7,)."""
-        return torch.tensor(
-            [s.W1 / 10.0, s.M1 / 10.0, s.R1 / 10.0,
-             s.W2 / 10.0, s.M2 / 10.0, s.R2 / 10.0,
-             float(s.terminal)],
-            dtype=torch.float32,
+        return torch.from_numpy(
+            np.array([s.W1 / 10.0, s.M1 / 10.0, s.R1 / 10.0,
+                      s.W2 / 10.0, s.M2 / 10.0, s.R2 / 10.0,
+                      float(s.terminal)], dtype=np.float32)
         )
 
     def _epsilon_greedy(self, s_tensor: torch.Tensor, epsilon: float):
