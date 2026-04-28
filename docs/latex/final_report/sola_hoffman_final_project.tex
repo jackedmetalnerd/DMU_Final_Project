@@ -1,6 +1,7 @@
 \documentclass[conference]{IEEEtran}
 
 \usepackage{amsmath, amssymb}
+\usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage{hyperref}
 \usepackage{soul}
@@ -28,7 +29,7 @@
   \IEEEauthorblockN{Michael Sola}
   \IEEEauthorblockA{University of Colorado Boulder}
   \and
-  \IEEEauthorblockN{Jeremiaha Hoffman}
+  \IEEEauthorblockN{Jeremiah Hoffman}
   \IEEEauthorblockA{University of Colorado Boulder}
 }
 
@@ -54,7 +55,13 @@ where both players have dynamic gameplay policies. The Markov Game is solved usi
 fictitious self-play, in which each player iteratively best-responds against the running
 average of all past opponent policies, guaranteeing convergence to a Nash equilibrium in
 this zero-sum setting. The third tier would combine the MG and POMDP into a Partially
-Observable Stochastic Game (POSG). \hl{summarize results}
+Observable Stochastic Game (POSG). Among MDP solvers, value iteration achieved the highest win rate but at the cost
+of full state-space enumeration; DQN approached comparable performance with
+significantly better scalability. Under partial observability, QMDP proved
+robust to limited opponent state information but brittle to opponent policy
+mismatch, where POMCP's online planning maintained stronger performance by
+avoiding reliance on a precomputed value function.
+\hl{summarize MG and POSG results}
 
 % -----------------------------------------------------------------------
 \section{Background and Related Work}
@@ -261,7 +268,7 @@ While QMDP is simple to implement, it assumes next-step full observability and r
 a full-state value function. POMCP (Algorithm~\ref{alg:pomcp}) instead combines MCTS
 with a particle-based belief, indexing the search tree by action--observation history
 $h$ rather than state. Each call draws 200 particles from the current belief, runs
-1000 simulations using UCB, and performs random rollouts to depth~20 from leaf nodes.
+5000 simulations using UCB, and performs random rollouts to depth~20 from leaf nodes.
 
 \begin{algorithm}
 \caption{POMCP}
@@ -371,13 +378,130 @@ reinforcement learning or approximate dynamic programming techniques.
 \section{Results}\label{sec:results}
 % -----------------------------------------------------------------------
 
-\hl{Present results with plots and tables. Quantify uncertainty where possible (e.g.,
-confidence intervals over multiple runs). Compare value iteration policy against RL
-agents.}
+\subsection{Tier 1: MDP Solver Performance}
 
-\hl{insert general results plots across all algorithms}
-\subsection{DQN}
-\hl{insert learning rate plot}
+All MDP solvers were evaluated from the Player 1 perspective against a fixed Player 2
+policy using the following parameters to define the game environment and solver setup:
+\begin{itemize}
+  \item Initial State: Workers = Marines = Resources = 1
+  \item Player 2 policy: \texttt{alternating\_training\_attack}
+  \item Number of episodes: 10,000
+  \item Number of games to evaluate win rate: 100
+  \item Discount factor: 0.95
+\end{itemize}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig_mdp_solvers.pdf}
+\caption{MDP Solver Performance vs.\ \texttt{alternating\_training\_attack}.
+  Error bars show 95\% Wilson confidence intervals.}
+\label{fig:mdp-solvers}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig_solver_convergence.pdf}
+\caption{Initial-state Value Estimate vs.\ normalized training/planning effort
+for each MDP solver}
+\label{fig:solver-convergence}
+\end{figure}
+
+As expected, value iteration achieved the best performance, since
+it converges to the optimal value function, from which a greedy policy can be
+directly extracted. However, this performance comes at the cost of additional
+computation time, since the value iteration solution method iterates over the
+entire state space, where approximate solvers need only a sufficient sample of
+states. For the current state dimensions, this is very tractable, converging in approximately 30 seconds, but future increases in complexity -
+higher troop or resource limits, more types of personnel, more action options,
+etc. - can increase the state space size exponentially, and value iteration
+would quickly become intractable as it scales with $|\mathcal{S}|^2$. Q-learning scales
+better than value iteration ($|\mathcal{S}|$), but this could still become intractable, and
+as seen in Figure~\ref{fig:mdp-solvers} Q-learning performs worse than all other 
+implemented solvers. DQN and MCTS both attempt to minimize this curse of 
+dimensionality: MCTS by exploring only a tree of reachable states, which would 
+scale well to large state spaces, though it trades quality for this scalability, 
+and may require significantly increased run counts in larger reachable state 
+spaces to achieve acceptable performance. Since DQN approximates the value 
+function with a neural network, it can generalize to unvisited states, and for a 
+well-behaved value function can understand a very large state space without much 
+added computational cost. This scalability appears to come at a much lower cost 
+than MCTS for this problem, as DQN performs nearly as well as value iteration, 
+making it a prime contender for use in future problem evolutions.
+
+In Figure~\ref{fig:solver-convergence}, the estimation errors from the other
+three solvers can be seen more directly. Q-learning and MCTS both underestimate
+the value of the initial state provided by value iteration, MCTS quite 
+significantly, and DQN overestimates it. In future work, any chosen solver - 
+likely DQN, based on its current performance - could be modified to account for 
+some of this error, e.g., by implementing double Q-learning to remove 
+maximization bias.
+
+\subsection{Tier 2: POMDP Observability}
+
+To explore the impacts of limited observation of the adversary's state, the
+QMDP solver was used in scenarios with varying levels of observability (no
+observability, presence or absence of personnel, bucketed estimate of
+personnel, and full observability). Each scenario was evaluated using
+the following parameters:
+\begin{itemize}
+  \item Player 2 policy: \texttt{alternating\_training\_attack}
+  \item Number of games: 100
+  \item Step limit: 500
+\end{itemize}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig_qmdp_obs.pdf}
+\caption{QMDP Win Rate vs.\ Observation Granularity ($n$).
+  Error bars show 95\% Wilson confidence intervals.}
+\label{fig:qmdp-obs}
+\end{figure}
+
+As expected, QMDP achieved the best win rate in the exact observation 
+scenario, decreasing the observability of the opponent's state only 
+decreased performance by a small margin. The performance for each of 
+the bucketed, presence/absence, and blind scenarios is very similar,
+with the confidence intervals mostly overlapping. This indicates that 
+knowledge of the adversary's population status is minimally important for
+winning the game. Stated another way, the best policy for Player 1 does not
+vary significantly based on Player 2's state, and QMDP's single-step
+lookahead is sufficiently capable for this POMDP formulation, achieving 
+close to the MDP win rate even when observability is limited.
+
+\subsection{Tier 2: Model Mismatch and POMCP}
+
+In order to determine the effect of other sources of uncertainty, an additional
+scenario was constructed where the solver has no knowledge of Player 2's policy:
+uncertainty in this scenario comes not just from a partially observable state,
+but also from ambiguity over what actions the opponent will play from any given
+state. This was effectuated for the QMDP solver by building a value function from
+a uniform random Player 2 policy, but allowing Player 2 to instead play the
+\texttt{alternating\_training\_attack} policy in subsequent gameplay. Following an observed
+drop in QMDP's effectiveness under this uncertainty, the POMCP solver was also
+implemented to compare performance under the same conditions. The solver and
+gameplay parameters from the observation granularity investigation were reused,
+but here the enemy state remained fully unobservable (\texttt{n\_obs\_levels=1}).
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig_mismatch.pdf}
+\caption{Performance Under P2 Model Mismatch (planner assumes
+uniform-random P2; simulation uses \texttt{alternating\_training\_attack}).
+  Error bars show 95\% Wilson confidence intervals.}
+\label{fig:mismatch}
+\end{figure}
+
+The introduction of policy uncertainty significantly decreases QMDP's win
+rate, indicating that this POMDP solution method is brittle to an inaccurate
+value function - unsurprisingly for an offline planner. POMCP's results, as
+an online planner, are markedly different: its Monte Carlo-based estimation
+of the expected value of a state is not as accurate as a well-built value
+lookup table, so POMCP's performance lags QMDP's slightly in the baseline 
+case. POMCP, however, can build a reasonably accurate value estimate regardless 
+of the prior knowledge QMDP relies on, and its higher performance in the 
+``mismatch'' scenario, turning losses into draws, if not wins, demonstrates 
+this robustness.
+
 \subsection{Markov Game}
 \hl{insert convergence plot}
 \hl{insert game results}
@@ -386,13 +510,36 @@ agents.}
 \section{Conclusion}
 % -----------------------------------------------------------------------
 
-\hl{Summarize findings, key takeaways, and potential future extensions.}
+This work formalized a two-player resource-and-combat game as an MDP and
+evaluated four solvers under full and partial observability. Value iteration
+produced the highest win rate (58\%) against the fixed opponent policy, while
+DQN achieved near-comparable performance (50\%) with substantially better
+scalability to larger state spaces, making it the most practical choice for
+future problem extensions. Q-learning and MCTS both underperformed relative to
+their computational cost at this problem scale.
+
+Under partial observability, QMDP demonstrated that knowledge of the opponent's
+unit counts has limited impact on win rate: performance degraded only modestly
+as observability decreased from perfect to fully blind. The more significant
+challenge proved to be opponent policy uncertainty: QMDP's win rate dropped from
+40\% to 15\% under policy mismatch, while POMCP's online planning reduced this
+sensitivity.
+
+Future work could increase state space complexity (higher troop and resource
+limits, additional unit types) to stress-test DQN's scalability advantage and
+further motivate POMCP over offline planners. Within the current formulation,
+double Q-learning could address the overestimation bias observed in DQN's value
+estimates.
 
 % -----------------------------------------------------------------------
 \section*{Contributions}
 % -----------------------------------------------------------------------
 
-\hl{Describe the contributions of each team member.}
+Jeremiah implemented the initial MDP environment, value iteration, Q-learning, 
+and MCTS. He also implemented the POMDP extension and solvers. 
+
+Michael improved the MDP implementation and applied DQN, and implemented
+both the Markov Game and POSG extensions.
 
 The authors grant permission for this report to be posted publicly.
 
