@@ -15,6 +15,7 @@ class ValueIteration(Solver):
         super().__init__(env)
         self.tol = tol
         self.V = None
+        self.v0_history = []
         self.policy = None
 
     def solve(self, initial_V=None) -> DictPolicy:
@@ -23,20 +24,22 @@ class ValueIteration(Solver):
         S, A, T, R, γ = self.env.S, self.env.A, self.env.T, self.env.R, self.env.γ
 
         term_mask = np.array([s.terminal == 1 for s in S])
-        term_vals = np.array([s.terminal_value() if s.terminal else 0.0 for s in S])
 
-        V = initial_V.copy() if initial_V is not None else term_vals.copy()
-        V[term_mask] = term_vals[term_mask]
+        V = initial_V.copy() if initial_V is not None else np.zeros(len(S))
+        V[term_mask] = 0.0
         it, start = 0, time.time()
 
-        R_nonterminal = np.where(term_mask, 0.0, R)
         while True:
-            Vp = R_nonterminal + γ * (T[A[0]] @ V)
+            RgV = R + γ * V          # expected next-state reward + discounted future value
+            Vp = T[A[0]] @ RgV
             for a in A[1:]:
-                Vp = np.maximum(Vp, R_nonterminal + γ * (T[a] @ V))
-            Vp[term_mask] = term_vals[term_mask]
+                Vp = np.maximum(Vp, T[a] @ RgV)
+            Vp[term_mask] = 0.0
 
             delta = np.max(np.abs(V - Vp))
+            s0_idx = self.env.S_index[self.env.initial_state]
+            self.v0_history.append(float(Vp[s0_idx]))
+
             V = Vp
             it += 1
 
@@ -54,7 +57,7 @@ class ValueIteration(Solver):
 
     def _greedy(self, V) -> DictPolicy:
         S, A, T, R, γ = self.env.S, self.env.A, self.env.T, self.env.R, self.env.γ
-        Q = np.array([R + γ * (T[a] @ V) for a in A])
+        Q = np.array([T[a] @ (R + γ * V) for a in A])
         best = np.argmax(Q, axis=0)
         policy_dict = {s: A[best[i]] for i, s in enumerate(tqdm(S, desc="Building greedy policy"))}
         return DictPolicy(policy_dict)
@@ -82,3 +85,28 @@ if __name__ == '__main__':
     print(f"  P1 wins: {p1_wins}/{n_games} ({100*p1_wins/n_games:.0f}%)")
     print(f"  P2 wins: {p2_wins}/{n_games} ({100*p2_wins/n_games:.0f}%)")
     print(f"  Draws:   {draws}/{n_games} ({100*draws/n_games:.0f}%)")
+
+    print("\nRunning matrix vs transition() diagnostic (1000 random states)...")
+    import random
+    mismatches = 0
+    sample_states = [s for s in env.S if not s.terminal]
+    for s in random.sample(sample_states, min(1000, len(sample_states))):
+        for a in env.A:
+            row = env.T[a][env.S_index[s], :].toarray().flatten()
+            dist = env.transition_model.transition(s, a)
+            for sp, p in dist.items():
+                j = env.S_index[sp]
+                if abs(row[j] - p) > 1e-9:
+                    print(f"  MISMATCH: action={a}, state={s}")
+                    print(f"    next={sp}: matrix={row[j]:.8f}, transition()={p:.8f}")
+                    mismatches += 1
+                    if mismatches >= 10:
+                        break
+            if mismatches >= 10:
+                break
+        if mismatches >= 10:
+            break
+    if mismatches == 0:
+        print("  No mismatches found — matrices agree with transition().")
+    else:
+        print(f"  Found {mismatches}+ mismatches.")

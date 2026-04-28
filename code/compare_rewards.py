@@ -14,6 +14,7 @@ Usage:
 
 import argparse
 import numpy as np
+import matplotlib.pyplot as plt
 from math import sqrt
 
 from game_env import GameEnv
@@ -30,6 +31,24 @@ from dqn import DQNSolver
 S_INIT = State(W1=1, M1=1, R1=1, W2=1, M2=1, R2=1, terminal=0)
 
 ALL_REWARD_FNS = Reward.ALL
+
+# ── Confidence interval helpers ───────────────────────────────────────────────
+
+def _wilson_ci(p, n, z=1.96):
+    """95% Wilson score confidence interval for proportion p from n trials."""
+    denom  = 1 + z**2 / n
+    center = (p + z**2 / (2*n)) / denom
+    half   = z * np.sqrt(p*(1-p)/n + z**2/(4*n**2)) / denom
+    return center - half, center + half
+
+def _bar_yerr(proportions, n):
+    """Asymmetric Wilson CI error bars in the shape matplotlib expects (2, N)."""
+    lowers, uppers = [], []
+    for p in proportions:
+        lo, hi = _wilson_ci(p, n)
+        lowers.append(p - lo)
+        uppers.append(hi - p)
+    return np.array([lowers, uppers])
 
 # ── Win-rate measurement ───────────────────────────────────────────────────────
 
@@ -141,6 +160,43 @@ def print_summary(results, solvers_to_run, reward_fns):
             row += f"  {results[key][0]:>5.1%}" if key in results else f"  {'N/A':>5}"
         print(row)
 
+def plot_summary(results, solvers_to_run, reward_fns, n_games):
+    solver_labels = {'vi': 'VI', 'ql': 'QL', 'mcts': 'MCTS', 'dqn': 'DQN'}
+    bw = 0.25
+
+    for rf_fn in reward_fns:
+        rf_name = rf_fn.__name__
+        solvers_present = [s for s in solvers_to_run if (rf_name, s) in results]
+        if not solvers_present:
+            continue
+
+        wins   = [results[(rf_name, s)][0] for s in solvers_present]
+        losses = [results[(rf_name, s)][1] for s in solvers_present]
+        draws  = [results[(rf_name, s)][2] for s in solvers_present]
+        xlabels = [solver_labels[s] for s in solvers_present]
+
+        x = np.arange(len(solvers_present))
+        fig, ax = plt.subplots(figsize=(8, 5))
+        ax.bar(x - bw, wins,   bw, label='Win',  color='steelblue',
+               yerr=_bar_yerr(wins,   n_games), capsize=4, error_kw={'elinewidth': 1})
+        ax.bar(x,      losses, bw, label='Loss', color='tomato',
+               yerr=_bar_yerr(losses, n_games), capsize=4, error_kw={'elinewidth': 1})
+        ax.bar(x + bw, draws,  bw, label='Draw', color='gray',
+               yerr=_bar_yerr(draws,  n_games), capsize=4, error_kw={'elinewidth': 1})
+        ax.set_xticks(x)
+        ax.set_xticklabels(xlabels)
+        ax.set_xlabel('Solver')
+        ax.set_ylabel('Rate')
+        ax.set_title(f'Win rates by solver — reward: {rf_name}')
+        ax.set_ylim(0, 1)
+        ax.legend()
+        fig.tight_layout()
+        fname = f'mdp_winrates_{rf_name}.png'
+        fig.savefig(fname, dpi=150)
+        print(f"Saved {fname}")
+
+    plt.show()
+
 # ── Entry point ────────────────────────────────────────────────────────────────
 
 if __name__ == '__main__':
@@ -180,3 +236,4 @@ if __name__ == '__main__':
         dqn_episodes=args.dqn_episodes,
     )
     print_summary(results, args.solver, selected_rfs)
+    plot_summary(results, args.solver, selected_rfs, args.games)

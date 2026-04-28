@@ -28,12 +28,18 @@ class MCTSSolver(Solver):
         self.n, self.q, self.t = {}, {}, {}
 
     def get_action(self, s):
+        A = self.env.A
+        s0 = s
+        history = []
         for _ in range(self.num_runs):
             self._run(s, self.depth)
-        A = self.env.A
+            history.append(max(self.q.get((s0, a), 0.0) for a in A))
+        self.v0_history = history          #one entry per rollout
+
         q_vals = np.array([self.q.get((s, a), 0.0) for a in A])
         best = np.flatnonzero(q_vals == q_vals.max())
         return A[random.choice(list(best))]
+
 
     # ------------------------------------------------------------------
     # Internal MCTS logic
@@ -82,8 +88,8 @@ class MCTSSolver(Solver):
         q_it = env.reward.evaluate(s) + env.γ * self._run(sp, depth - 1)
         self.n[(s, a)] += 1
         self.q[(s, a)] += (q_it - self.q[(s, a)]) / self.n[(s, a)]
-        key = (s, a, sp)
-        self.t[key] = self.t.get(key, 0) + 1
+        #key = (s, a, sp)
+        #self.t[key] = self.t.get(key, 0) + 1
 
         return q_it
 

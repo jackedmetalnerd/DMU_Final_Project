@@ -1,3 +1,21 @@
+"""
+pomdp_env.py
+============
+POMDP environment extending GameEnv with belief-state tracking.
+
+Wraps the underlying MDP with an ObservationModel and maintains a
+probability distribution (belief) over the state space. Belief is
+updated automatically on each act() call using Bayes' rule.
+
+Classes
+-------
+BeliefCollapseError — raised when belief update yields zero probability
+                      for all states consistent with the observation
+POMDPEnv(GameEnv)   — adds observe(), belief_update(), and step() to GameEnv;
+                      observe() returns the current belief vector instead of
+                      the true state
+"""
+
 import numpy as np
 from game_env import GameEnv
 from observation_model import ObservationModel
@@ -33,9 +51,17 @@ class POMDPEnv(GameEnv):
         pred *= self.observation_model.obs_masks[o] #apply possibility mask
         total = pred.sum()
         if total < 1e-15:
-            raise BeliefCollapseError(
-                f"Belief collapes: no states consistent with observation {o} after action {a}"
-            )
+            # Belief diverged from true state (unobserved R2 causes W2 jump across bucket
+            # boundaries). Fall back to uniform over obs-consistent states so the game
+            # can continue; the next observation will re-anchor the belief.
+            mask = self.observation_model.obs_masks[o].astype(np.float64)
+            mask_sum = mask.sum()
+            if mask_sum == 0:
+                raise BeliefCollapseError(
+                    f"Belief collapes: no states consistent with observation {o} after action {a}"
+                )
+            self._belief = mask / mask_sum
+            return
         self._belief = pred / total #normalize
 
     def act(self, a): #true state update

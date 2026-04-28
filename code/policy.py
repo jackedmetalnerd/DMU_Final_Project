@@ -12,6 +12,7 @@ SymmetricPolicy — mirrors a P1 Policy to P2 by swapping player fields;
                   replaces the P2_policy_converter() function in policies.py
 MCTSPolicy      — lazy policy that runs MCTS planning on each call
 BeliefPolicy    - wrapper for belief-based policies
+POMCPPolicy     - lazy policy that runs POMCP planning on each call
 
 All concrete policies are callable objects, so they work wherever a plain
 callable is expected (GameEnv, simulate, update_P2_policy, etc.).
@@ -122,6 +123,21 @@ class BeliefPolicy(Policy):
         return self._solver.get_action(b)
 
 
+class POMCPPolicy(Policy):
+    # Lazy belief policy for POMCP - tracks action/obs history
+    def __init__(self, solver):
+        self._solver = solver
+
+    def __call__(self, b: np.ndarray) -> Action:
+        return self._solver.get_action(b)
+
+    def update(self, a, o):
+        self._solver.update(a, o)
+
+    def reset(self):
+        self._solver.reset()
+
+
 # ── Policy I/O ────────────────────────────────────────────────────────────────
 
 def save_policy(policy, path: str, states: list, actions: list) -> None:
@@ -148,7 +164,7 @@ def load_policy(path: str, states: list, actions: list) -> FunctionPolicy:
     states  : ordered list of States (must match the list used when saving)
     actions : ordered list of Actions (must match the list used when saving)
     """
-    indices    = np.load(path)
+    indices     = np.load(path)
     state_index = {s: i for i, s in enumerate(states)}
     return FunctionPolicy(lambda s, idx=indices, si=state_index, a=actions: a[idx[si[s]]])
 
@@ -164,13 +180,12 @@ def load_mixed_policy(path: str, states: list, actions: list):
 
     The returned object samples an action according to the stored probabilities.
     """
-    sigma      = np.load(path)
+    sigma       = np.load(path)
     state_index = {s: i for i, s in enumerate(states)}
 
     class _LoadedMixedPolicy(Policy):
         def __call__(self, s: State) -> Action:
-            i     = state_index[s]
-            probs = sigma[i]
+            probs = sigma[state_index[s]]
             return actions[np.random.choice(len(actions), p=probs)]
 
     return _LoadedMixedPolicy()

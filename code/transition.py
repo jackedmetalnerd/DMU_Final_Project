@@ -72,7 +72,11 @@ class TransitionModel:
             return {s: 1.0}
 
         p1_attacks = (a == Action.P1_ATTACK)
-        a2         = self._opponent_policy(s)      # P2 observes original s
+        if isinstance(self._opponent_policy, np.ndarray):
+            probs = self._opponent_policy[self._state_index[s]]
+            a2 = self.ACTIONS_P2[np.random.choice(len(self.ACTIONS_P2), p=probs)]
+        else:
+            a2 = self._opponent_policy(s)
         p2_attacks = (a2 == Action.P2_ATTACK)
 
         # Combat from original (M1, M2) if either player attacks
@@ -109,13 +113,64 @@ class TransitionModel:
         return result
 
     def sample(self, s: State, a) -> State:
-        """Sample one next state from transition(s, a)."""
-        dist = self.transition(s, a)
-        states = list(dist.keys())
-        probs  = np.array(list(dist.values()), dtype=np.float64)
-        probs /= probs.sum()
-        idx = np.random.choice(len(states), p=probs)
-        return states[idx]
+        """Sample one next state using simultaneous semantics without building the full distribution."""
+        if s.terminal:
+            return s
+
+        p1_attacks = (a == Action.P1_ATTACK)
+        if isinstance(self._opponent_policy, np.ndarray):
+            probs = self._opponent_policy[self._state_index[s]]
+            a2 = self.ACTIONS_P2[np.random.choice(len(self.ACTIONS_P2), p=probs)]
+        else:
+            a2 = self._opponent_policy(s)
+        p2_attacks = (a2 == Action.P2_ATTACK)
+
+        if p1_attacks or p2_attacks:
+            outcomes = self._combat_lookup[(s.M1, s.M2)]
+            keys  = list(outcomes.keys())
+            probs = np.array(list(outcomes.values()), dtype=np.float64)
+            nm1, nm2 = keys[np.random.choice(len(keys), p=probs / probs.sum())]
+        else:
+            nm1, nm2 = s.M1, s.M2
+
+        if not p1_attacks:
+            p1d = self._training_deltas_p1(s, a)
+            if len(p1d) == 1:
+                dW1, dM1, dR1 = next(iter(p1d))
+            else:
+                keys = list(p1d.keys())
+                dW1, dM1, dR1 = keys[0] if np.random.random() < 0.9 else keys[1]
+        else:
+            dW1, dM1, dR1 = 0, 0, 0
+
+        if not p2_attacks:
+            p2d = self._training_deltas_p2(s, a2)
+            if len(p2d) == 1:
+                dW2, dM2, dR2 = next(iter(p2d))
+            else:
+                keys = list(p2d.keys())
+                dW2, dM2, dR2 = keys[0] if np.random.random() < 0.9 else keys[1]
+        else:
+            dW2, dM2, dR2 = 0, 0, 0
+
+        M1f  = max(nm1 + dM1, 0)
+        M2f  = max(nm2 + dM2, 0)
+        W1f  = min(s.W1 + dW1, 10)
+        W2f  = min(s.W2 + dW2, 10)
+        R1f  = s.R1 + dR1
+        R2f  = s.R2 + dR2
+        term = 1 if (M1f == 0 or M2f == 0) else 0
+        ns   = State(W1f, M1f, R1f, W2f, M2f, R2f, term)
+        return self._apply_resources(ns)
+
+    # def sample(self, s: State, a) -> State:
+    #     """Sample one next state from transition(s, a)."""
+    #     dist = self.transition(s, a)
+    #     states = list(dist.keys())
+    #     probs  = np.array(list(dist.values()), dtype=np.float64)
+    #     probs /= probs.sum()
+    #     idx = np.random.choice(len(states), p=probs)
+    #     return states[idx]
 
     def build_matrices(self) -> None:
         """Precompute full sparse transition matrices T[a] for all P1 actions.
@@ -143,7 +198,12 @@ class TransitionModel:
             return s.R2 > 0 and s.W2 < 10
         if a == Action.P2_TRAIN_MARINES:
             return s.R2 > 0 and s.M2 < 10
-        return True
+        return True  # attacks always valid
+    
+    def build_uniform_P2(self) -> None:
+        n = len(self._states)
+        sigma = np.full((n, 3), 1.0 / 3.0)
+        self.update_P2_policy(sigma)
 
     def __getitem__(self, action):
         if not self.T:

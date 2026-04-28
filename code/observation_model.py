@@ -1,3 +1,22 @@
+"""
+observation_model.py
+====================
+Observation model for the POMDP extension of the two-player MDP.
+
+P1 observes its own state exactly (W1, M1, R1) and receives bucketed
+observations of P2's forces (M2, W2) at configurable granularity.
+
+Classes
+-------
+ObservationModel — maps states to observations; builds obs_masks for
+                   efficient belief updates in POMDPEnv
+
+Functions
+---------
+_bucket(x, n_levels) — discretizes a continuous count into n_levels bins;
+                        n_levels=1 gives blind obs, n_levels>=11 gives exact obs
+"""
+
 from collections import namedtuple
 import numpy as np
 from state import State
