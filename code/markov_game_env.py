@@ -130,22 +130,29 @@ class MarkovGameEnv:
 
     # ── Game simulation ───────────────────────────────────────────────────────
 
-    def simulate(self, p1_policy, p2_policy, max_turns: int = 50) -> str:
+    def simulate(self, p1_policy, p2_policy, max_turns: int = 50,
+                 save_path: str = 'auto') -> str:
         """Run one complete game and print a turn-by-turn trace.
-
-        Uses joint_model.joint_sample for transitions (both actions applied jointly).
 
         Parameters
         ----------
-        p1_policy : callable(State) -> Action  (P1-labeled action)
-        p2_policy : callable(State) -> Action  (P2-labeled action)
+        p1_policy : callable(State) -> Action
+        p2_policy : callable(State) -> Action
         max_turns : int
+        save_path : str
+            Path for the .npz trace file. Defaults to 'auto', which generates
+            a unique timestamped filename. Pass None to disable saving.
 
         Returns
         -------
         str : 'P1', 'P2', or 'Draw'
         """
+        import numpy as np, time as _time
+        if save_path == 'auto':
+            save_path = f'mg_trace_{int(_time.time()*1000)}.npz'
         s = self.initial_state
+        W1_h, M1_h, W2_h, M2_h = [s.W1], [s.M1], [s.W2], [s.M2]
+
         print(f"{'Turn':<5} | {'P1 Action':<22} | {'P2 Action':<22} | "
               f"(W1,M1,R1 | W2,M2,R2 | term)")
         print("-" * 90)
@@ -157,17 +164,55 @@ class MarkovGameEnv:
                       f"{s.W2:02d},{s.M2:02d},{s.R2:02d} | {s.terminal})")
                 winner = s.winner()
                 print(f"\nGame Over! Winner: {winner} in {turn - 1} turns\n")
+                if save_path:
+                    np.savez(save_path,
+                             W1=np.array(W1_h), M1=np.array(M1_h),
+                             W2=np.array(W2_h), M2=np.array(M2_h),
+                             winner=np.array([winner]))
                 return winner
-            
-            
+
             a1 = p1_policy(s)
             a2 = p2_policy(s)
-            
             print(f"{turn:<5} | {str(a1):<22} | {str(a2):<22} | "
                   f"({s.W1:02d},{s.M1:02d},{s.R1:02d} | "
                   f"{s.W2:02d},{s.M2:02d},{s.R2:02d} | {s.terminal})")
 
             s = self.joint_model.joint_sample(s, a1, a2)
+            W1_h.append(s.W1); M1_h.append(s.M1)
+            W2_h.append(s.W2); M2_h.append(s.M2)
 
+        winner = 'Draw'
         print(f"\nGame Over! Draw - maximum turns reached\n")
-        return 'Draw'
+        if save_path:
+            np.savez(save_path,
+                     W1=np.array(W1_h), M1=np.array(M1_h),
+                     W2=np.array(W2_h), M2=np.array(M2_h),
+                     winner=np.array([winner]))
+        return winner
+
+    def simulate_trace(self, p1_policy, p2_policy, max_turns: int = 50) -> dict:
+        """Run one game silently and return turn-by-turn unit counts.
+
+        Returns
+        -------
+        dict with keys 'W1', 'M1', 'W2', 'M2' (np.ndarray, length = turns+1)
+        and 'winner' ('P1', 'P2', or 'Draw').
+        """
+        import numpy as np
+        s = self.initial_state
+        W1, M1 = [s.W1], [s.M1]
+        W2, M2 = [s.W2], [s.M2]
+
+        for _ in range(max_turns):
+            if s.terminal:
+                break
+            s = self.joint_model.joint_sample(s, p1_policy(s), p2_policy(s))
+            W1.append(s.W1); M1.append(s.M1)
+            W2.append(s.W2); M2.append(s.M2)
+
+        winner = s.winner() if s.terminal else 'Draw'
+        return {
+            'W1': np.array(W1, dtype=np.int32), 'M1': np.array(M1, dtype=np.int32),
+            'W2': np.array(W2, dtype=np.int32), 'M2': np.array(M2, dtype=np.int32),
+            'winner': winner,
+        }
