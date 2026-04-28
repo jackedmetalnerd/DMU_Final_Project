@@ -448,9 +448,9 @@ for each MDP solver}
 \label{fig:solver-convergence}
 \end{figure}
 
-As expected, value iteration achieved the best win rate (58\%), since
+As expected, value iteration achieved the best win rate (85\%), since
 it converges to the optimal value function, from which a greedy policy can be
-directly extracted. DQN achieved a 50\% win rate, and Q-learning and MCTS
+directly extracted. DQN achieved a 79\% win rate, and Q-learning and MCTS
 trailed further behind (see Figure~\ref{fig:mdp-solvers}). However, this performance comes at the cost of additional
 computation time, since the value iteration solution method iterates over the
 entire state space, where approximate solvers need only a sufficient sample of
