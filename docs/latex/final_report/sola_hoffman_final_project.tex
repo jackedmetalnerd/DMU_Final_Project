@@ -7,6 +7,7 @@
 \usepackage{soul}
 \usepackage{algorithm}
 \usepackage{algpseudocode}
+\usepackage{cite}
 
 \hypersetup{
   colorlinks=true,
@@ -22,7 +23,7 @@
 
 \begin{document}
 
-\title{A Sequential Decision-Making Framework for a Two-Player Resource-and-Combat Game\\
+\title{A Sequential Decision-Making Framework for a Two-Player Simplified Real Time Strategy Game\\
 {\normalsize ASEN 5264 --- Decision Making Under Uncertainty}}
 
 \author{
@@ -42,8 +43,8 @@
 This project develops a two-player strategy game in which each player manages workers,
 marines, and resources with the goal of eliminating all enemy marines. The game is
 formalized as a Markov Decision Process and solved using methods from the course, with
-increasing model complexity across three tiers of completion. The first tier utilizes
-value iteration to solve for an optimal policy against a deterministic policy of the
+increasing model complexity across three tiers of completion. The first tier explores solution of the fully observable MDP. 
+First, value iteration is used to solve for an optimal policy against a deterministic policy of the
 adversary and Monte Carlo Tree Search (MCTS) to evaluate online planning effectiveness.
 Reinforcement learning is also applied, specifically Q-learning and Deep Q-Network (DQN)
 learning to learn against this optimal policy. The second tier extends the problem
@@ -60,18 +61,72 @@ highest win rate but at the cost of full state-space enumeration; DQN approached
 comparable performance with significantly better scalability. Under partial observability, 
 QMDP proved robust to limited opponent state information but brittle to opponent policy
 mismatch, where POMCP's online planning maintained stronger performance by avoiding 
-reliance on a precomputed value function.
-\hl{summarize MG and POSG results}
+reliance on a precomputed value function. \hl{summarize MG results}
+ Time restrictions did not allow for continuing into the third tier and modeling a POSG.
 
 % -----------------------------------------------------------------------
 \section{Background and Related Work}
 % -----------------------------------------------------------------------
 
-The main motivation behind this project was to simulate deterrence as a POSG. Deterrence is usually modeled using game theory between multiple agents but has not be framed as an MDP. However, modeling deterrence as a MDP needed to be dramatically simplified to be able to be completed in the time alloted. Adjacent to the concept of deterrence is conflict simulation. Real time strategy (RTS) games are the most analogous to conflict simulation and is a platform that can be integrated into a reinforcement learning platform. RTS games possess many attributes that make reinforcement learning difficult: partial observability, large state and action spaces, rapid response times, and evolving strategies to name a few. In the field of reinforcement learning, AlphaStar is considered one of the biggest achievements \hl{cite  alphastar} where it was taught to play Starcrat II (SC2). AlphaStar first used supervised learning to produce an initial policy by learning on previously recorded matches. AlphaStar used a variant of actor-critic as its main learning algorithm. On the multi-agent side, AlphaStarr used fictious self play to compute the best responses against a variety of opponents. Other RTS games that reinforcement learning has been trained on include Starcraft: Brood War \hl{cite} and Warcraft III \hl{cite}. Additionaly, due to the complexity of these RTS games, lighter weight RTS environments have been developed specifically for reinforcement learning. 
+The main motivation behind this project was to simulate deterrence 
+as a partially observable stochastic game (POSG). Deterrence is 
+typically modeled using game theory between multiple agents but has 
+not been framed as a Markov Decision Process (MDP). However, 
+modeling deterrence as an MDP needed to be dramatically simplified 
+to be completed within the time allotted. Adjacent to the concept 
+of deterrence is conflict simulation. Real-time strategy (RTS) games 
+are the most analogous framework to conflict simulation and are a platform that 
+can be integrated with reinforcement learning frameworks. RTS games 
+possess many attributes that make reinforcement learning difficult: 
+partial observability, large state and action spaces, rapid response 
+times, and evolving strategies
+\cite{ontanon2013survey}. In the field of reinforcement learning, 
+AlphaStar is considered one of the most significant achievements 
+\cite{vinyals2019grandmaster}, where it was trained to play 
+StarCraft II (SC2). AlphaStar first used supervised learning on 
+971,000 previously recorded human matches to produce a diverse 
+initial policy. AlphaStar then used V-trace, an off-policy 
+actor-critic algorithm, as its primary reinforcement learning update. 
+On the multi-agent side, AlphaStar used a league training procedure 
+based on prioritized fictitious self-play (PFSP) to compute best 
+responses against a diverse population of opponents 
+\cite{vinyals2019grandmaster}. Other RTS games on which 
+reinforcement learning has been applied include StarCraft: Brood War 
+\cite{synnaeve2016torchcraft} and Warcraft III 
+\cite{andersen2017tower}. Additionally, due to the complexity of 
+full commercial RTS games, lightweight environments have been 
+developed specifically for reinforcement learning research, including 
+microRTS \cite{huang2021gym}, Mini-RTS \cite{tian2017elf}, and Deep 
+RTS \cite{andersen2018deeprts}. Each environment has its own 
+trade-offs in complexity and simulation speed, but all were designed 
+as platforms to test reinforcement learning algorithms more 
+efficiently. This project, due to time constraints, simplifies these 
+ideas further. The state and action spaces were reduced 
+significantly, but various algorithms could still be applied to find 
+policies capable of reaching terminal conditions. This project 
+formulation was designed to capture the core dynamics of RTS games 
+at their simplest level --- workers, marines, and resources --- 
+while incorporating reinforcement learning and game-theoretic 
+concepts to solve for optimal policies.
 
 % -----------------------------------------------------------------------
 \section{Problem Formulation}\label{sec:formulation}
 % -----------------------------------------------------------------------
+\begin{table*}[t]
+\centering
+\caption{Transition Model}
+\label{tab:transition_model}
+\begin{tabular}{llll}
+  \toprule
+  \textbf{Action} & \textbf{Condition} & \textbf{Next State} & \textbf{Prob.} \\
+  \midrule
+  train worker  & $r \geq 1$  & $w' = w+1,\; r' = r-1$                & $0.9$ \\
+  train marine  & $r \geq 1$  & $m' = m+r,\; r' = 0$                   & $0.9$ \\
+  attack        & always      & $m'_A = m_A - k_A,\; m'_B = m_B - k_B$ & $P(k_A,k_B)$ \\
+  terminal      & $m_i = 0$   & $s_{\text{term}}$                       & $1.0$ \\
+  \bottomrule
+\end{tabular}
+\end{table*}
 
 \subsection{State Space}
 
@@ -91,37 +146,27 @@ Each player selects from the following action set each turn:
 
 \subsection{Transition Model}
 
-The table below summarizes the transition model. If either player has $m_i = 0$, the
-game transitions to $s_{\text{term}}$ with probability 1 regardless of action.
+Table \ref{tab:transition_model} summarizes the transition model. If either player has $m_i = 0$, the
+game transitions to $s_{\text{term}}$ with probability 1 regardless of action. The probability, $P(k_A,k_B)$, resulting from an \texttt{attack} action is given by the binomial distribution
+\begin{align}
+  P(k_A, k_B) = &\binom{m_B}{k_A} p^{k_A}(1-p)^{(m_B - k_A)} \times \\
+                &\binom{m_A}{k_B} p^{k_B}(1-p)^{(m_A - k_B)}
+\end{align}
+\noindent
+where $k_A,k_B$ represent the marines loses during an attack engagement and the propability of success was set to $p=\frac{1}{2}$.
 
-\begin{table}[h]
-\centering
-\caption{Transition Model}
-\begin{tabular}{llll}
-  \toprule
-  \textbf{Action} & \textbf{Condition} & \textbf{Next State} & \textbf{Prob.} \\
-  \midrule
-  train worker  & $r \geq 1$  & $w' = w+1,\; r' = r-1$                & $0.9$ \\
-  train marine  & $r \geq 1$  & $m' = m+r,\; r' = 0$                   & $0.9$ \\
-  attack        & always      & $m'_A = m_A - k_A,\; m'_B = m_B - k_B$ & $P(k_A,k_B)$ \\
-  terminal      & $m_i = 0$   & $s_{\text{term}}$                       & $1.0$ \\
-  \bottomrule
-\end{tabular}
-\end{table}
-
-where $k_A \sim \mathrm{Binomial}(m_B,\, p_B)$, $k_B \sim \mathrm{Binomial}(m_A,\,
-p_A)$, and $P(k_A, k_B)$ is their product under independence.
 
 \subsection{Reward}
 
-$R = 1$ upon reaching $s_{\text{term}}$ as the winner; $R = 0$ otherwise.
+$R = 1$ upon reaching $s_{\text{term}}$ as the winner and $R = -1$ for the defeated player. This basic reward structure makes the MDP a zero-sum game from a game theory perspective.
 
 % -----------------------------------------------------------------------
 \section{Solution Approach}
 % -----------------------------------------------------------------------
 
-\subsection{Tier 1: Value Iteration on the Fully Observable MDP}
+\subsection{Tier 1: Markov Decision Process Solutions}
 
+\subsubsection{Value Iteration on the Fully Observable MDP}
 The game is formalized as a fully observable MDP with pre-computed transition matrices
 $T_a$ for each Player~1 action $a$. Player~2's default action policy,
 \texttt{alternating\_training\_attack}, alternates between training marines and workers
@@ -136,7 +181,7 @@ until $\|U - U'\|_{\infty} < \varepsilon$.  The greedy policy is then extracted 
 $\pi^*(s) = \arg\max_a \bigl(R(s,a)+\gamma\,\mathbb{E}[U^*(s')]\bigr)$.
 
 \begin{algorithm}
-\caption{Value Iteration}
+\caption{Value Iteration \cite{kochenderfer2022algorithms}}
 \label{alg:vi}
 \begin{algorithmic}[1]
 \Given{MDP $(\mathcal{S}, \mathcal{A}, R, T, \gamma)$, tolerance $\varepsilon$}
@@ -152,7 +197,7 @@ $\pi^*(s) = \arg\max_a \bigl(R(s,a)+\gamma\,\mathbb{E}[U^*(s')]\bigr)$.
 \end{algorithmic}
 \end{algorithm}
 
-\subsection{Tier 1: Online Planning with MCTS}
+\subsubsection{Online Planning with MCTS}
 
 Since value iteration requires full-state enumeration, Monte Carlo Tree Search
 (MCTS/UCT, Algorithm~\ref{alg:mcts}) is also implemented as an online planner. From
@@ -163,7 +208,7 @@ depth~50, and backs up the discounted return. The agent then acts greedily with 
 to the resulting $Q$ estimates.
 
 \begin{algorithm}
-\caption{Monte Carlo Tree Search (MCTS/UCT)}
+\caption{Monte Carlo Tree Search (MCTS/UCT) \cite{kochenderfer2022algorithms}}
 \label{alg:mcts}
 \begin{algorithmic}[1]
 \Function{MCTS}{$s$}
@@ -193,7 +238,7 @@ to the resulting $Q$ estimates.
 \end{algorithmic}
 \end{algorithm}
 
-\subsection{Tier 1: Reinforcement Learning: Q-Learning and DQN}
+\subsubsection{Reinforcement Learning: Q-Learning and DQN}
 
 Two reinforcement learning methods are applied. Q-learning (Algorithm~\ref{alg:ql})
 maintains a tabular estimate $Q(s,a)$ updated via the TD error at each step, with
@@ -201,7 +246,7 @@ $\alpha = 0.1$, $\gamma = 0.95$, and $\varepsilon$ decaying linearly from $0.2$ 
 $0.05$.
 
 \begin{algorithm}
-\caption{Q-Learning}
+\caption{Q-Learning \cite{kochenderfer2022algorithms}}
 \label{alg:ql}
 \begin{algorithmic}[1]
 \State $Q(s,a) \gets 0$ for all $(s,a)$;\quad $s \gets s_0$
@@ -250,18 +295,20 @@ Exploration decays exponentially from $\varepsilon_0 = 0.5$ to $\varepsilon_{\mi
 \end{algorithmic}
 \end{algorithm}
 
-\subsection{Tier 2: Partial Observability and QMDP}
+\subsection{Tier 2: POMDP and Markov Game Solutions}
+\subsubsection{QMDP}
 
 The game model is extended to a POMDP where Player~1 observes its own personnel and
 resources exactly but receives only a discretized observation of Player~2's personnel
 with granularity $n$. QMDP approximates the POMDP value function by assuming full
 observability after one step, yielding
-\begin{equation}
-  Q_{\text{QMDP}}(b, a) = b^{\!\top}\!\left(R + \gamma\, T_a V^*\right), \qquad
-  \pi_{\text{QMDP}}(b) = \arg\max_a Q_{\text{QMDP}}(b, a).
-\end{equation}
 
-\subsection{Tier 2: POMCP}
+\begin{align}
+  Q_{\text{QMDP}}(b, a) &= b^{\!\top}\!\left(R + \gamma\, T_a V^*\right)\\
+  \pi_{\text{QMDP}}(b) &= \arg\max_a Q_{\text{QMDP}}(b, a).
+\end{align}
+
+\subsubsection{POMCP}
 
 While QMDP is simple to implement, it assumes next-step full observability and requires
 a full-state value function. POMCP (Algorithm~\ref{alg:pomcp}) instead combines MCTS
@@ -270,7 +317,7 @@ $h$ rather than state. Each call draws 200 particles from the current belief, ru
 5000 simulations using UCB, and performs random rollouts to depth~20 from leaf nodes.
 
 \begin{algorithm}
-\caption{POMCP}
+\caption{POMCP \cite{kochenderfer2022algorithms}}
 \label{alg:pomcp}
 \begin{algorithmic}[1]
 \Function{POMCP}{$b$}
@@ -301,12 +348,12 @@ $h$ rather than state. Each call draws 200 particles from the current belief, ru
 \end{algorithmic}
 \end{algorithm}
 
-\subsection{Tier 2: Markov Game}
+\subsubsection{Fictitious Self-Play}
 
 All previous approaches fixed the opponent's policy, reducing the game to a
 single-agent MDP. A Markov game extends the MDP framework to the multi-agent setting
 by defining a joint action space and per-player reward functions. Two solution methods
-are applied: alternating best response (Algorithm~\ref{alg:abr}) and fictitious
+are applied in unison: alternating best response (Algorithm~\ref{alg:abr}) and fictitious
 self-play (Algorithm~\ref{alg:fsp}).
 
 In ABR each player in turn freezes the opponent's current policy, reduces the MG to a
@@ -328,7 +375,7 @@ and Player~1 runs value iteration against this marginalized MDP. The same proced
 applies symmetrically for Player~2 using an inverted-state representation.
 
 \begin{algorithm}
-\caption{Alternating Best Response}
+\caption{Alternating Best Response \cite{kochenderfer2022algorithms}}
 \label{alg:abr}
 \begin{algorithmic}[1]
 \State Initialize policies $\pi^1_0$, $\pi^2_0$ arbitrarily
@@ -345,7 +392,7 @@ applies symmetrically for Player~2 using an inverted-state representation.
 \end{algorithm}
 
 \begin{algorithm}
-\caption{Fictitious Self-Play}
+\caption{Fictitious Self-Play \cite{kochenderfer2022algorithms}}
 \label{alg:fsp}
 \begin{algorithmic}[1]
 \State Initialize $n^1[s, a] \gets 0$;\quad seed $n^2$ from initial P2 policy
@@ -368,10 +415,7 @@ applies symmetrically for Player~2 using an inverted-state representation.
 
 \subsection{Tier 3: Partially Observable Stochastic Game}
 
-The full formulation combines partial observability with simultaneous multi-agent
-interaction. Each player maintains a belief over the joint state and reasons about
-opponent behavior under uncertainty. Solution methods may include multi-agent
-reinforcement learning or approximate dynamic programming techniques.
+Tier three would combine the concepts of POMDPs and MGs into a single framework. However, due to time constraints and the complexities of POSGs, tier three experimentation was not able to be acheived. 
 
 % -----------------------------------------------------------------------
 \section{Results}\label{sec:results}
@@ -502,7 +546,7 @@ reasonably accurate value estimate regardless of the prior knowledge QMDP
 relies on, and its higher performance in the ``mismatch'' scenario demonstrates 
 this robustness.
 
-\subsection{Markov Game}
+\subsection{Tier 2: Markov Game}
 \hl{insert convergence plot}
 \hl{insert game results}
 

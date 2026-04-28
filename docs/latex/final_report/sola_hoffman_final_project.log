@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2024) (preloaded format=pdflatex 2025.2.26)  28 APR 2026 11:57
+This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2024) (preloaded format=pdflatex 2025.2.26)  28 APR 2026 13:51
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -379,8 +379,12 @@ Document Style algorithmicx 1.2 - a greatly improved `algorithmic' style
 \ALG@tmplength=\skip59
 )
 Document Style - pseudocode environments for use with the `algorithmicx' style
+) (c:/texlive/2024/texmf-dist/tex/latex/cite/cite.sty
+LaTeX Info: Redefining \cite on input line 302.
+LaTeX Info: Redefining \nocite on input line 332.
+Package: cite 2015/02/27  v 5.5
 )
-Package hyperref Info: Option `colorlinks' set `true' on input line 15.
+Package hyperref Info: Option `colorlinks' set `true' on input line 16.
  (c:/texlive/2024/texmf-dist/tex/latex/l3backend/l3backend-pdftex.def
 File: l3backend-pdftex.def 2024-05-08 L3 backend support: PDF output (pdfTeX)
 \l__color_backend_stack_int=\count318
@@ -388,24 +392,24 @@ File: l3backend-pdftex.def 2024-05-08 L3 backend support: PDF output (pdfTeX)
 ) (./sola_hoffman_final_project.aux)
 \openout1 = `sola_hoffman_final_project.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 23.
-LaTeX Font Info:    ... okay on input line 23.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 23.
-LaTeX Font Info:    ... okay on input line 23.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 23.
-LaTeX Font Info:    ... okay on input line 23.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 23.
-LaTeX Font Info:    ... okay on input line 23.
-LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 23.
-LaTeX Font Info:    ... okay on input line 23.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 23.
-LaTeX Font Info:    ... okay on input line 23.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 23.
-LaTeX Font Info:    ... okay on input line 23.
-LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 23.
-LaTeX Font Info:    ... okay on input line 23.
-LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 23.
-LaTeX Font Info:    ... okay on input line 23.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 24.
+LaTeX Font Info:    ... okay on input line 24.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 24.
+LaTeX Font Info:    ... okay on input line 24.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 24.
+LaTeX Font Info:    ... okay on input line 24.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 24.
+LaTeX Font Info:    ... okay on input line 24.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 24.
+LaTeX Font Info:    ... okay on input line 24.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 24.
+LaTeX Font Info:    ... okay on input line 24.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 24.
+LaTeX Font Info:    ... okay on input line 24.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 24.
+LaTeX Font Info:    ... okay on input line 24.
+LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 24.
+LaTeX Font Info:    ... okay on input line 24.
 
 -- Lines per column: 56 (exact).
 (c:/texlive/2024/texmf-dist/tex/context/base/mkii/supp-pdf.mkii
@@ -433,147 +437,152 @@ File: color.cfg 2016/01/02 v1.6 sample color configuration
 )
 Package color Info: Driver file: pdftex.def on input line 149.
  (c:/texlive/2024/texmf-dist/tex/latex/graphics/mathcolor.ltx))
-Package hyperref Info: Link coloring ON on input line 23.
+Package hyperref Info: Link coloring ON on input line 24.
  (./sola_hoffman_final_project.out) (./sola_hoffman_final_project.out)
 \@outlinefile=\write3
 \openout3 = `sola_hoffman_final_project.out'.
 
 
 
-LaTeX Font Info:    Trying to load font information for U+msa on input line 78.
+LaTeX Font Info:    Trying to load font information for U+msa on input line 119.
 (c:/texlive/2024/texmf-dist/tex/latex/amsfonts/umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 )
-LaTeX Font Info:    Trying to load font information for U+msb on input line 78.
+LaTeX Font Info:    Trying to load font information for U+msb on input line 119.
  (c:/texlive/2024/texmf-dist/tex/latex/amsfonts/umsb.fd
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 )
-LaTeX Font Info:    Trying to load font information for OT1+pcr on input line 89.
+LaTeX Font Info:    Trying to load font information for OT1+pcr on input line 144.
  (c:/texlive/2024/texmf-dist/tex/latex/psnfss/ot1pcr.fd
 File: ot1pcr.fd 2001/06/04 font definitions for OT1/pcr.
 )
-Overfull \hbox (34.07594pt too wide) in paragraph at lines 100--110
- [][] 
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 112--114
-[]\OT1/ptm/m/n/10 where $\OML/cmm/m/it/10 k[] \OMS/cmsy/m/n/10 ^^X []\OT1/cmr/m/n/10 (\OML/cmm/m/it/10 m[];  p[]\OT1/cmr/m/n/10 )$\OT1/ptm/m/n/10 , $\OML/cmm/m/it/10 k[] \OMS/cmsy/m/n/10 ^^X
- []
-
-
 
 [1{c:/texlive/2024/texmf-var/fonts/map/pdftex/updmap/pdftex.map}{c:/texlive/2024/texmf-dist/fonts/enc/dvips/base/8r.enc}
 
 
-
-pdfTeX warning (ext4): destination with the same identifier (name{table.1}) has been already used, duplicate ignored
-<argument> ...shipout:D \box_use:N \l_shipout_box 
-                                                  \__shipout_drop_firstpage_...
-l.120 \section
-              {Solution Approach}]
-Underfull \hbox (badness 1629) in paragraph at lines 125--131
-[]\OT1/ptm/m/n/10 The game is for-mal-ized as a fully ob-serv-able MDP
+]
+Underfull \hbox (badness 2573) in paragraph at lines 170--176
+ \OT1/ptm/m/it/10 1) Value It-er-a-tion on the Fully Ob-serv-able MDP: [][][]
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 125--131
+Underfull \hbox (badness 3826) in paragraph at lines 170--176
+\OT1/ptm/m/n/10 The game is for-mal-ized as a fully ob-serv-able MDP
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 170--176
 \OT1/ptm/m/n/10 with pre-computed tran-si-tion ma-tri-ces $\OML/cmm/m/it/10 T[]$ \OT1/ptm/m/n/10 for each
  []
 
 
-Underfull \hbox (badness 5331) in paragraph at lines 125--131
+Underfull \hbox (badness 5331) in paragraph at lines 170--176
 \OT1/ptm/m/n/10 Player 1 ac-tion $\OML/cmm/m/it/10 a$\OT1/ptm/m/n/10 . Player 2's de-fault ac-tion pol-icy,
  []
 
 
-Underfull \hbox (badness 2573) in paragraph at lines 125--131
+Underfull \hbox (badness 2573) in paragraph at lines 170--176
 \OT1/pcr/m/n/10 alternating_training_attack\OT1/ptm/m/n/10 , al-ter-nates be-tween
  []
 
 
-Underfull \hbox (badness 1735) in paragraph at lines 125--131
+Underfull \hbox (badness 1735) in paragraph at lines 170--176
 \OT1/ptm/m/n/10 train-ing marines and work-ers un-less both are sat-u-rated
  []
 
-Package hyperref Info: bookmark level for unknown algorithm defaults to 0 on input line 139.
+Package hyperref Info: bookmark level for unknown algorithm defaults to 0 on input line 184.
 
-Overfull \hbox (5.074pt too wide) in paragraph at lines 147--149
+Overfull \hbox (5.074pt too wide) in paragraph at lines 192--194
 [] $\OML/cmm/m/it/10 U[]\OT1/cmr/m/n/10 (\OML/cmm/m/it/10 s\OT1/cmr/m/n/10 ) \OMS/cmsy/m/n/10   []  []$ 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 215--216
+
+
+
+[2
+pdfTeX warning (ext4): destination with the same identifier (name{table.1}) has been already used, duplicate ignored
+<argument> ...shipout:D \box_use:N \l_shipout_box 
+                                                  \__shipout_drop_firstpage_...
+l.247 
+      ]
+Underfull \hbox (badness 10000) in paragraph at lines 260--261
 [] $\OML/cmm/m/it/10 Q\OT1/cmr/m/n/10 (\OML/cmm/m/it/10 s; a\OT1/cmr/m/n/10 ) \OMS/cmsy/m/n/10   \OML/cmm/m/it/10 Q\OT1/cmr/m/n/10 (\OML/cmm/m/it/10 s; a\OT1/cmr/m/n/10 ) +
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 244--247
+Underfull \hbox (badness 10000) in paragraph at lines 289--292
 [] $\OML/cmm/m/it/10 ^^R \OMS/cmsy/m/n/10   \OML/cmm/m/it/10 ^^R \OMS/cmsy/m/n/10 ^^@ \OML/cmm/m/it/10  \OMS/cmsy/m/n/10 r[][]  [][]  []\OML/cmm/m/it/10 r[] \OT1/cmr/m/n/10 +
  []
 
 
-
-
-
-[2]
-Overfull \hbox (46.98376pt too wide) detected at line 262
-[][][]\OML/cmm/m/it/10 Q[]\OT1/cmr/m/n/10 (\OML/cmm/m/it/10 b; a\OT1/cmr/m/n/10 ) = \OML/cmm/m/it/10 b[]  [] ;  ^^Y[]\OT1/cmr/m/n/10 (\OML/cmm/m/it/10 b\OT1/cmr/m/n/10 ) = [] [] \OML/cmm/m/it/10 Q[]\OT1/cmr/m/n/10 (\OML/cmm/m/it/10 b; a\OT1/cmr/m/n/10 )\OML/cmm/m/it/10 :
+Underfull \hbox (badness 2689) in paragraph at lines 301--305
+\OT1/ptm/m/n/10 per-son-nel with gran-u-lar-ity $\OML/cmm/m/it/10 n$\OT1/ptm/m/n/10 . QMDP ap-prox-i-mates the
  []
 
 
 
 
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+
 
 [3]
-<fig_mdp_solvers.png, id=140, 650.43pt x 361.35pt>
+<fig_mdp_solvers.png, id=176, 650.43pt x 361.35pt>
 File: fig_mdp_solvers.png Graphic file (type png)
 <use fig_mdp_solvers.png>
-Package pdftex.def Info: fig_mdp_solvers.png  used on input line 394.
+Package pdftex.def Info: fig_mdp_solvers.png  used on input line 438.
 (pdftex.def)             Requested size: 252.0pt x 139.99962pt.
-<fig_solver_convergence.png, id=142, 650.43pt x 361.35pt>
+<fig_solver_convergence.png, id=178, 650.43pt x 361.35pt>
 File: fig_solver_convergence.png Graphic file (type png)
 <use fig_solver_convergence.png>
-Package pdftex.def Info: fig_solver_convergence.png  used on input line 402.
+Package pdftex.def Info: fig_solver_convergence.png  used on input line 446.
 (pdftex.def)             Requested size: 252.0pt x 139.99962pt.
 
 
-<fig_qmdp_obs.png, id=145, 578.16pt x 361.35pt>
-File: fig_qmdp_obs.png Graphic file (type png)
-<use fig_qmdp_obs.png>
-Package pdftex.def Info: fig_qmdp_obs.png  used on input line 454.
-(pdftex.def)             Requested size: 252.0pt x 157.50026pt.
 
 
 [4
 pdfTeX warning (ext4): destination with the same identifier (name{figure.1}) has been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.470 
+l.482 
       
 pdfTeX warning (ext4): destination with the same identifier (name{figure.2}) has been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.470 
-      
-pdfTeX warning (ext4): destination with the same identifier (name{figure.3}) has been already used, duplicate ignored
-<argument> ...shipout:D \box_use:N \l_shipout_box 
-                                                  \__shipout_drop_firstpage_...
-l.470 
-       <./fig_mdp_solvers.png> <./fig_solver_convergence.png> <./fig_qmdp_obs.png>]
-<fig_mismatch.png, id=156, 578.16pt x 361.35pt>
-File: fig_mismatch.png Graphic file (type png)
-<use fig_mismatch.png>
-Package pdftex.def Info: fig_mismatch.png  used on input line 487.
+l.482 
+       <./fig_mdp_solvers.png> <./fig_solver_convergence.png>]
+<fig_qmdp_obs.png, id=192, 578.16pt x 361.35pt>
+File: fig_qmdp_obs.png Graphic file (type png)
+<use fig_qmdp_obs.png>
+Package pdftex.def Info: fig_qmdp_obs.png  used on input line 498.
 (pdftex.def)             Requested size: 252.0pt x 157.50026pt.
 
 
+<fig_mismatch.png, id=193, 578.16pt x 361.35pt>
+File: fig_mismatch.png Graphic file (type png)
+<use fig_mismatch.png>
+Package pdftex.def Info: fig_mismatch.png  used on input line 531.
+(pdftex.def)             Requested size: 252.0pt x 157.50026pt.
 
-Underfull \hbox (badness 2653) in paragraph at lines 521--527
+Underfull \hbox (badness 2653) in paragraph at lines 565--571
 []\OT1/ptm/m/n/10 Under par-tial ob-serv-abil-ity, QMDP demon-strated that
  []
 
-No file sola_hoffman_final_project.bbl.
+
+
+[5
+pdfTeX warning (ext4): destination with the same identifier (name{figure.3}) has been already used, duplicate ignored
+<argument> ...shipout:D \box_use:N \l_shipout_box 
+                                                  \__shipout_drop_firstpage_...
+l.571 
+      
+pdfTeX warning (ext4): destination with the same identifier (name{figure.4}) has been already used, duplicate ignored
+<argument> ...shipout:D \box_use:N \l_shipout_box 
+                                                  \__shipout_drop_firstpage_...
+l.571 
+       <./fig_qmdp_obs.png> <./fig_mismatch.png>] (./sola_hoffman_final_project.bbl)
 
 ** Conference Paper **
 Before submitting the final camera ready copy, remember to:
@@ -587,32 +596,31 @@ Before submitting the final camera ready copy, remember to:
 
 
 
-[5
-pdfTeX warning (ext4): destination with the same identifier (name{figure.4}) has been already used, duplicate ignored
-<argument> ...shipout:D \box_use:N \l_shipout_box 
-                                                  \__shipout_drop_firstpage_...
-l.549 \end{document}
-                     <./fig_mismatch.png>] (./sola_hoffman_final_project.aux)
+
+
+[6
+
+] (./sola_hoffman_final_project.aux)
  ***********
 LaTeX2e <2024-11-01> patch level 2
 L3 programming layer <2025-01-18>
  ***********
 Package rerunfilecheck Info: File `sola_hoffman_final_project.out' has not changed.
-(rerunfilecheck)             Checksum: D4C1FFA0CD73594BC01DD67CE79B47A2;3715.
+(rerunfilecheck)             Checksum: 86B65DBBA6B26FAD0990C545D46D7529;4095.
  ) 
 Here is how much of TeX's memory you used:
- 11781 strings out of 473201
- 184002 string characters out of 5720299
- 606536 words of memory out of 5000000
- 34825 multiletter control sequences out of 15000+600000
- 600468 words of font info for 118 fonts, out of 8000000 for 9000
+ 11917 strings out of 473201
+ 186253 string characters out of 5720299
+ 606804 words of memory out of 5000000
+ 34939 multiletter control sequences out of 15000+600000
+ 601604 words of font info for 119 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 75i,13n,79p,1212b,490s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 75i,13n,79p,530b,451s stack positions out of 10000i,1000n,20000p,200000b,200000s
 <c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi5.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi6.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi7.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi8.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr5.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr7.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr8.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy5.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy6.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb><c:/texlive/2024/texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb><c:/texlive/2024/texmf-dist/fonts/type1/urw/times/utmb8a.pfb><c:/texlive/2024/texmf-dist/fonts/type1/urw/times/utmr8a.pfb><c:/texlive/2024/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
-Output written on sola_hoffman_final_project.pdf (5 pages, 465761 bytes).
+Output written on sola_hoffman_final_project.pdf (6 pages, 474643 bytes).
 PDF statistics:
- 262 PDF objects out of 1000 (max. 8388607)
- 204 compressed objects within 3 object streams
- 44 named destinations out of 1000 (max. 500000)
- 189 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 306 PDF objects out of 1000 (max. 8388607)
+ 247 compressed objects within 3 object streams
+ 59 named destinations out of 1000 (max. 500000)
+ 213 words of extra memory for PDF output out of 10000 (max. 10000000)
 
