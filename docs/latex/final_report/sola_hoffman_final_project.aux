@@ -12,27 +12,27 @@
 \citation{andersen2018deeprts}
 \@writefile{toc}{\contentsline {section}{\numberline {I}Introduction}{1}{section.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {II}Background and Related Work}{1}{section.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {III}Problem Formulation}{1}{section.3}\protected@file@percent }
-\newlabel{sec:formulation}{{III}{1}{Problem Formulation}{section.3}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-A}}State Space}{1}{subsection.3.1}\protected@file@percent }
 \citation{kochenderfer2022algorithms}
 \citation{kochenderfer2022algorithms}
-\@writefile{lot}{\contentsline {table}{\numberline {I}{\ignorespaces Transition Model}}{2}{table.1}\protected@file@percent }
-\newlabel{tab:transition_model}{{I}{2}{Transition Model}{table.1}{}}
+\citation{kochenderfer2022algorithms}
+\@writefile{toc}{\contentsline {section}{\numberline {III}Problem Formulation}{2}{section.3}\protected@file@percent }
+\newlabel{sec:formulation}{{III}{2}{Problem Formulation}{section.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-A}}State Space}{2}{subsection.3.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-B}}Action Space}{2}{subsection.3.2}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-C}}Transition Model}{2}{subsection.3.3}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-D}}Reward}{2}{subsection.3.4}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {IV}Solution Approach}{2}{section.4}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-A}}Tier 1: Markov Decision Process Solutions}{2}{subsection.4.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-A}1}Value Iteration on the Fully Observable MDP}{2}{subsubsection.4.1.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-A}2}Online Planning with MCTS}{2}{subsubsection.4.1.2}\protected@file@percent }
 \@writefile{loa}{\contentsline {algorithm}{\numberline {1}{\ignorespaces Value Iteration \cite  {kochenderfer2022algorithms}}}{2}{algorithm.1}\protected@file@percent }
 \newlabel{alg:vi}{{1}{2}{Value Iteration on the Fully Observable MDP}{algorithm.1}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-A}2}Online Planning with MCTS}{2}{subsubsection.4.1.2}\protected@file@percent }
 \@writefile{loa}{\contentsline {algorithm}{\numberline {2}{\ignorespaces Monte Carlo Tree Search (MCTS/UCT) \cite  {kochenderfer2022algorithms}}}{2}{algorithm.2}\protected@file@percent }
 \newlabel{alg:mcts}{{2}{2}{Online Planning with MCTS}{algorithm.2}{}}
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-A}3}Reinforcement Learning: Q-Learning and DQN}{2}{subsubsection.4.1.3}\protected@file@percent }
 \citation{kochenderfer2022algorithms}
-\citation{kochenderfer2022algorithms}
+\@writefile{lot}{\contentsline {table}{\numberline {I}{\ignorespaces Transition Model}}{3}{table.1}\protected@file@percent }
+\newlabel{tab:transition_model}{{I}{3}{Transition Model}{table.1}{}}
 \@writefile{loa}{\contentsline {algorithm}{\numberline {3}{\ignorespaces Q-Learning \cite  {kochenderfer2022algorithms}}}{3}{algorithm.3}\protected@file@percent }
 \newlabel{alg:ql}{{3}{3}{Reinforcement Learning: Q-Learning and DQN}{algorithm.3}{}}
 \@writefile{loa}{\contentsline {algorithm}{\numberline {4}{\ignorespaces Deep Q-Network (DQN)}}{3}{algorithm.4}\protected@file@percent }
@@ -50,36 +50,40 @@
 \@writefile{loa}{\contentsline {algorithm}{\numberline {7}{\ignorespaces Fictitious Self-Play \cite  {kochenderfer2022algorithms}}}{4}{algorithm.7}\protected@file@percent }
 \newlabel{alg:fsp}{{7}{4}{Fictitious Self-Play}{algorithm.7}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-C}}Tier 3: Partially Observable Stochastic Game}{4}{subsection.4.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {V}Results}{4}{section.5}\protected@file@percent }
-\newlabel{sec:results}{{V}{4}{Results}{section.5}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-A}}Tier 1: MDP Solver Performance}{4}{subsection.5.1}\protected@file@percent }
 \@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces MDP Solver Performance vs.\ \texttt  {alternating\_training\_attack}. Error bars show 95\% Wilson confidence intervals.}}{4}{figure.1}\protected@file@percent }
 \newlabel{fig:mdp-solvers}{{1}{4}{MDP Solver Performance vs.\ \texttt {alternating\_training\_attack}. Error bars show 95\% Wilson confidence intervals}{figure.1}{}}
 \@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Initial-state Value Estimate vs.\ normalized training/planning effort for each MDP solver}}{4}{figure.2}\protected@file@percent }
 \newlabel{fig:solver-convergence}{{2}{4}{Initial-state Value Estimate vs.\ normalized training/planning effort for each MDP solver}{figure.2}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {V}Results}{4}{section.5}\protected@file@percent }
+\newlabel{sec:results}{{V}{4}{Results}{section.5}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-A}}Tier 1: MDP Solver Performance}{4}{subsection.5.1}\protected@file@percent }
 \@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces QMDP Win Rate vs.\ Observation Granularity ($n$). Error bars show 95\% Wilson confidence intervals.}}{5}{figure.3}\protected@file@percent }
 \newlabel{fig:qmdp-obs}{{3}{5}{QMDP Win Rate vs.\ Observation Granularity ($n$). Error bars show 95\% Wilson confidence intervals}{figure.3}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-B}}Tier 2: POMDP Observability}{5}{subsection.5.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-C}}Tier 2: Model Mismatch and POMCP}{5}{subsection.5.3}\protected@file@percent }
 \@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Performance Under P2 Model Mismatch (planner assumes uniform-random P2; simulation uses \texttt  {alternating\_training\_attack}). Error bars show 95\% confidence intervals.}}{5}{figure.4}\protected@file@percent }
 \newlabel{fig:mismatch}{{4}{5}{Performance Under P2 Model Mismatch (planner assumes uniform-random P2; simulation uses \texttt {alternating\_training\_attack}). Error bars show 95\% confidence intervals}{figure.4}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-D}}Tier 2: Markov Game and Fictitious Self-Play}{5}{subsection.5.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-C}}Tier 2: Model Mismatch and POMCP}{5}{subsection.5.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-D}}Tier 2: Markov Game and Fictitious Self-Play}{6}{subsection.5.4}\protected@file@percent }
 \@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Value at Initial State $s_0$ for each player over 100 FSP iterations. Both values converge toward zero, consistent with a mixed Nash equilibrium in this zero-sum game.}}{6}{figure.5}\protected@file@percent }
 \newlabel{fig:fsp-value}{{5}{6}{Value at Initial State $s_0$ for each player over 100 FSP iterations. Both values converge toward zero, consistent with a mixed Nash equilibrium in this zero-sum game}{figure.5}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {VI}Conclusion}{6}{section.6}\protected@file@percent }
 \@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces Average policy entropy $H(\sigma ^t)$ at $s_0$ for each player over 100 FSP iterations. Entropy decreases as the average policy concentrates on a dominant action, indicating convergence toward a near-deterministic Nash equilibrium strategy.}}{6}{figure.6}\protected@file@percent }
 \newlabel{fig:fsp-entropy}{{6}{6}{Average policy entropy $H(\sigma ^t)$ at $s_0$ for each player over 100 FSP iterations. Entropy decreases as the average policy concentrates on a dominant action, indicating convergence toward a near-deterministic Nash equilibrium strategy}{figure.6}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces Win rates over 1000 games using mixed Nash equilibrium policies from FSP. Results are approximately even (48\% P1, 52\% P2), consistent with convergence to a mixed Nash equilibrium in this zero-sum game.}}{6}{figure.7}\protected@file@percent }
-\newlabel{fig:fsp-results}{{7}{6}{Win rates over 1000 games using mixed Nash equilibrium policies from FSP. Results are approximately even (48\% P1, 52\% P2), consistent with convergence to a mixed Nash equilibrium in this zero-sum game}{figure.7}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {VI}Conclusion}{6}{section.6}\protected@file@percent }
 \bibstyle{IEEEtran}
 \bibdata{references}
 \bibcite{ontanon2013survey}{1}
 \bibcite{vinyals2019grandmaster}{2}
+\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces Win rates over 1000 games using mixed Nash equilibrium policies from FSP. Results are approximately even (48\% P1, 52\% P2), consistent with convergence to a mixed Nash equilibrium in this zero-sum game.}}{7}{figure.7}\protected@file@percent }
+\newlabel{fig:fsp-results}{{7}{7}{Win rates over 1000 games using mixed Nash equilibrium policies from FSP. Results are approximately even (48\% P1, 52\% P2), consistent with convergence to a mixed Nash equilibrium in this zero-sum game}{figure.7}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {8}{\ignorespaces Win rates for each MDP solver against the FSP-trained P2 opponent (100 games). VI and DQN achieve the highest win rates (60\% and 73\%), while Q-Learning struggles against the adaptive opponent policy.}}{7}{figure.8}\protected@file@percent }
+\newlabel{fig:mdp-winrates-fsp}{{8}{7}{Win rates for each MDP solver against the FSP-trained P2 opponent (100 games). VI and DQN achieve the highest win rates (60\% and 73\%), while Q-Learning struggles against the adaptive opponent policy}{figure.8}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {9}{\ignorespaces Estimated value of the initial state $V(s_0)$ across solvers against the FSP opponent. DQN overestimates value due to function approximation bias; VI converges near zero, consistent with the near-even game outcome.}}{7}{figure.9}\protected@file@percent }
+\newlabel{fig:v0-comparison-fsp}{{9}{7}{Estimated value of the initial state $V(s_0)$ across solvers against the FSP opponent. DQN overestimates value due to function approximation bias; VI converges near zero, consistent with the near-even game outcome}{figure.9}{}}
+\@writefile{toc}{\contentsline {section}{References}{7}{section*.2}\protected@file@percent }
 \bibcite{synnaeve2016torchcraft}{3}
 \bibcite{andersen2017tower}{4}
 \bibcite{huang2021gym}{5}
 \bibcite{tian2017elf}{6}
 \bibcite{andersen2018deeprts}{7}
 \bibcite{kochenderfer2022algorithms}{8}
-\@writefile{toc}{\contentsline {section}{References}{7}{section*.2}\protected@file@percent }
-\gdef \@abspage@last{7}
+\gdef \@abspage@last{8}

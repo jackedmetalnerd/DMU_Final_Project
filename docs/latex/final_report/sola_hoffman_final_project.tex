@@ -42,8 +42,7 @@
 % -----------------------------------------------------------------------
 
 This project develops a two-player strategy game in which each player manages workers,
-marines, and resources with the goal of eliminating all enemy marines. The game is
-formalized as a Markov Decision Process and solved using methods from the course, with
+marines, and resources with the goal of eliminating all enemy marines. The project is motivated by the fields of deterrence theory and conflict simulation where actors need to make decisions based on available information in order to achieve strategic goals. The project creates a simplified version of real time strategy games which have been studied extensively in reinforcement learning, most famously AlphaStar. The game is formalized as a Markov Decision Process and solved using methods from the course, with
 increasing model complexity across three tiers of completion. The first tier explores solution of the fully observable MDP. 
 First, value iteration is used to solve for an optimal policy against a deterministic policy of the
 adversary and Monte Carlo Tree Search (MCTS) to evaluate online planning effectiveness.
@@ -62,13 +61,12 @@ highest win rate but at the cost of full state-space enumeration; DQN approached
 comparable performance with significantly better scalability. Under partial observability, 
 QMDP proved robust to limited opponent state information but brittle to opponent policy
 mismatch, where POMCP's online planning maintained stronger performance by avoiding 
-reliance on a precomputed value function. \hl{summarize MG results}
- Time restrictions did not allow for continuing into the third tier and modeling a POSG.
+reliance on a precomputed value function. Under the Markov Game formulation, fictitious self-play converged to a near-even Nash equilibrium after 100 iterations; when MDP solvers were evaluated against the resulting FSP opponent policy, DQN outperformed value iteration (73\% vs.\ 60\%), while Q-learning degraded significantly, highlighting the sensitivity of offline planners to opponent policy assumptions.
+Time restrictions and problem complexity did not allow for continuing into the third tier and modeling a POSG.
 
 % -----------------------------------------------------------------------
 \section{Background and Related Work}
 % -----------------------------------------------------------------------
-
 The main motivation behind this project was to simulate deterrence 
 as a partially observable stochastic game (POSG). Deterrence is 
 typically modeled using game theory between multiple agents but has 
@@ -450,9 +448,10 @@ for each MDP solver}
 \label{fig:solver-convergence}
 \end{figure}
 
-As expected, value iteration achieved the best performance, since
+As expected, value iteration achieved the best win rate (58\%), since
 it converges to the optimal value function, from which a greedy policy can be
-directly extracted. However, this performance comes at the cost of additional
+directly extracted. DQN achieved a 50\% win rate, and Q-learning and MCTS
+trailed further behind (see Figure~\ref{fig:mdp-solvers}). However, this performance comes at the cost of additional
 computation time, since the value iteration solution method iterates over the
 entire state space, where approximate solvers need only a sufficient sample of
 states. For the current state dimensions, this is very tractable, converging 
@@ -556,7 +555,10 @@ action set $\mathcal{A}$, entropy is defined as
 \end{align}
 where $\sigma^t(a)$ is the probability assigned to action $a$ at FSP iteration $t$. Figure \ref{fig:fsp-entropy} shows that entropy for each policy converging around .1 nats. With a maximum possible entropy value of 1.099 nats (uniform distribution), a convergence value of .1 nats indicates that each players' policy is almost deterministic at each state. After the 100 iterations of alternating best response, figure \ref{fig:fsp-results} shows the win rates for both players after 1,000 simulated games. As expected, each player won approximately 50\% of the time. 
 
-To measure the performance of the methods used to find solutions for the MDPs and POMDPs, player two's policy calculated from fictitious play was used as the frozen policy of the MDPs and POMDPs. 
+To measure how the MDP solvers perform against an improved opponent policy, player 2's FSP-derived mixed policy was frozen and used in place of the deterministic \texttt{alternating\_training\_attack} policy. Figure~\ref{fig:mdp-winrates-fsp} shows the resulting win rates. Against the FSP opponent, DQN achieves the highest win rate (73\%), surpassing value iteration (60\%), a reversal of their relative ordering under the deterministic policy. This suggests that DQN's generalization through function approximation is better suited to opponents whose behavior is less predictable, while value iteration's exact solution is calibrated specifically to the policy used during planning. Q-learning degrades most severely under the FSP opponent (21\% win rate), consistent with its poor sample efficiency and sensitivity to opponent policy during training. MCTS maintains moderate performance (56\%), benefiting from its online planning which does not depend on a precomputed value function.
+
+Figure~\ref{fig:v0-comparison-fsp} shows the estimated value of the initial state across solvers when trained against the FSP opponent. Value iteration converges near zero, consistent with the near-even game outcome expected against a Nash equilibrium policy. DQN's value estimate is substantially higher ($\approx 0.3$), a larger overestimation bias than observed against the deterministic opponent, suggesting that DQN's neural network exploits statistical regularities in the FSP opponent that do not generalize to held-out games. Q-learning produces a slightly negative estimate, reflecting its inability to find a competitive policy against the adaptive opponent.
+
 \begin{figure}[t]
 \centering
 \includegraphics[width=\columnwidth]{fig_fsp_value}
@@ -583,7 +585,23 @@ To measure the performance of the methods used to find solutions for the MDPs an
 \label{fig:fsp-results}
 \end{figure}
 
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{mdp_winrates_fsp}
+\caption{Win rates for each MDP solver against the FSP-trained P2 opponent (100 games).
+  VI and DQN achieve the highest win rates (60\% and 73\%), while Q-Learning struggles
+  against the adaptive opponent policy.}
+\label{fig:mdp-winrates-fsp}
+\end{figure}
 
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{v0_comparison_fsp}
+\caption{Estimated value of the initial state $V(s_0)$ across solvers against the FSP
+  opponent. DQN overestimates value due to function approximation bias; VI converges
+  near zero, consistent with the near-even game outcome.}
+\label{fig:v0-comparison-fsp}
+\end{figure}
 
 % -----------------------------------------------------------------------
 \section{Conclusion}
@@ -592,7 +610,7 @@ To measure the performance of the methods used to find solutions for the MDPs an
 This work formalized a two-player resource-and-combat game as an MDP and
 evaluated four solvers under full and partial observability. Value iteration
 produced the highest win rate (58\%) against the fixed opponent policy, while
-DQN achieved near-comparable performance (50\%) with substantially better
+DQN reached 50\%---an 8-point gap, but achieved with substantially better
 scalability to larger state spaces, making it the most practical choice for
 future problem extensions. Q-learning and MCTS both underperformed relative to
 their computational cost at this problem scale.
@@ -604,21 +622,25 @@ challenge proved to be opponent policy uncertainty: QMDP's win rate dropped from
 40\% to 15\% under policy mismatch, while POMCP's online planning reduced this
 sensitivity.
 
+Extending to a Markov Game via fictitious self-play produced a near-even Nash equilibrium (48\%/52\% win split over 1000 games), confirming convergence in this zero-sum setting. Evaluating the MDP solvers against the FSP-derived opponent revealed that DQN's generalization advantage becomes most pronounced against adaptive opponents, surpassing value iteration's win rate despite value iteration's theoretical optimality against fixed policies.
+
 Future work could increase state space complexity (higher troop and resource
 limits, additional unit types) to stress-test DQN's scalability advantage and
 further motivate POMCP over offline planners. Within the current formulation,
 double Q-learning could address the overestimation bias observed in DQN's value
-estimates.
+estimates. Lastly, the POSG framework can be explored to see how multi-agent interaction develops under partial observability.
 
 % -----------------------------------------------------------------------
 \section*{Contributions}
 % -----------------------------------------------------------------------
+Jeremiah and Michael jointly developed the initial idea for a two-player, simplified, RTS-style game. Jeremiah implemented the initial MDP environment, value iteration, Q-learning, MCTS, and POMDP solvers. Michael converted the initial MDP and solvers into an object-oriented framework for ease extension and integration. He maintained version control of the code base via GitHub. Michael implemented DQN and the Markov Game framework. Both contributed to their respective sections in the final report and overall proofreading. 
 
-Jeremiah implemented the initial MDP environment, value iteration, Q-learning, 
-and MCTS. He also implemented the POMDP extension and solvers. 
-
-Michael improved the MDP implementation and applied DQN, and implemented
-both the Markov Game and POSG extensions.
+All algorithms presented in this report, value iteration, Q-learning, MCTS,
+QMDP, POMCP, alternating best response, and fictitious self-play, were
+implemented from scratch without relying on off-the-shelf reinforcement
+learning libraries such as Stable-Baselines or RLlib. DQN was
+implemented from scratch but used PyTorch for its neural network layers
+and optimizer. Otherwise, basic python libraries were used for non-reinforcement learning purposes.
 
 The authors grant permission for this report to be posted publicly.
 
