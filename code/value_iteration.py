@@ -3,7 +3,7 @@ import time
 from tqdm import tqdm
 from game_env import GameEnv
 from state import State
-from policy import DictPolicy
+from policy import DictPolicy, save_policy
 from solver import Solver
 from policies import alternating_training_attack, P2_policy_converter
 
@@ -68,6 +68,7 @@ if __name__ == '__main__':
     print("Running value iteration...")
     π_star = solver.solve()
     print("Done.")
+    save_policy(π_star, 'vi_policy_p1.npy', env.S, env.A)
 
     n_games = 20
     results = [env.simulate(π_star, label='Value Iteration') for _ in range(n_games)]

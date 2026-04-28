@@ -35,6 +35,7 @@
 }
 
 \maketitle
+\pagestyle{plain}
 
 % -----------------------------------------------------------------------
 \section{Introduction}
@@ -546,9 +547,43 @@ reasonably accurate value estimate regardless of the prior knowledge QMDP
 relies on, and its higher performance in the ``mismatch'' scenario demonstrates 
 this robustness.
 
-\subsection{Tier 2: Markov Game}
-\hl{insert convergence plot}
-\hl{insert game results}
+\subsection{Tier 2: Markov Game and Fictitious Self-Play}
+The previous approaches did not have multi-agent interaction. Formulating the problem as a Markov Game, fictitious self-play was impelemented to have actual agent interaction to improve their respective policies. For a simulated fictitious self-play, 100 iterations of alternating best response using value iteration were used to converge to a best response policy of each player. Since the reward structure makes this a zero-sum game, the initial value function for both players should converge to zero resulting in a mixed Nash equalibrium. Figure \ref{fig:fsp-value} shows that both player's value of the initial state for the average policy converged to zero over 100 iterations as expected. Since the values converged to zero, the mixed Nash equalibrium policies were approximated. The average policy entropy at the initial state $s_0$ is tracked across iterations to
+measure convergence of the mixed strategy. For a mixed policy $\sigma^t$ over the
+action set $\mathcal{A}$, entropy is defined as
+\begin{align}
+  H(\sigma^t) &= -\sum_{a \in \mathcal{A}} \sigma^t(a) \log \sigma^t(a)
+\end{align}
+where $\sigma^t(a)$ is the probability assigned to action $a$ at FSP iteration $t$. Figure \ref{fig:fsp-entropy} shows that entropy for each policy converging around .1 nats. With a maximum possible entropy value of 1.099 nats (uniform distribution), a convergence value of .1 nats indicates that each players' policy is almost deterministic at each state. After the 100 iterations of alternating best response, figure \ref{fig:fsp-results} shows the win rates for both players after 1,000 simulated games. As expected, each player won approximately 50\% of the time. 
+
+To measure the performance of the methods used to find solutions for the MDPs and POMDPs, player two's policy calculated from fictitious play was used as the frozen policy of the MDPs and POMDPs. 
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig_fsp_value}
+\caption{Value at Initial State $s_0$ for each player over 100 FSP iterations.
+  Both values converge toward zero, consistent with a mixed Nash equilibrium in this zero-sum game.}
+\label{fig:fsp-value}
+\end{figure}
+
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig_fsp_entropy}
+\caption{Average policy entropy $H(\sigma^t)$ at $s_0$ for each player over 100 FSP
+  iterations. Entropy decreases as the average policy concentrates on a dominant
+  action, indicating convergence toward a near-deterministic Nash equilibrium strategy.}
+\label{fig:fsp-entropy}
+\end{figure}
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig_fsp_results}
+\caption{Win rates over 1000 games using mixed Nash equilibrium policies from FSP.
+  Results are approximately even (48\% P1, 52\% P2), consistent with convergence
+  to a mixed Nash equilibrium in this zero-sum game.}
+\label{fig:fsp-results}
+\end{figure}
+
+
 
 % -----------------------------------------------------------------------
 \section{Conclusion}

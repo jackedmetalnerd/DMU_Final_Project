@@ -1,14 +1,14 @@
 # Fdb version 4
-["bibtex sola_hoffman_final_project"] 1777405761.96214 "sola_hoffman_final_project.aux" "sola_hoffman_final_project.bbl" "sola_hoffman_final_project" 1777405874.3195 0
-  "./references.bib" 1777402722 3722 6db0eb8083b203f82468918a2ef87d32 ""
+["bibtex sola_hoffman_final_project"] 1777409627.91004 "sola_hoffman_final_project.aux" "sola_hoffman_final_project.bbl" "sola_hoffman_final_project" 1777409631.58856 0
+  "./references.bib" 1777409489 3722 6db0eb8083b203f82468918a2ef87d32 ""
   "c:/texlive/2024/texmf-dist/bibtex/bst/ieeetran/IEEEtran.bst" 1740563261 57748 7c8250ecf02814ce6ddc0cdbb63df1dd ""
-  "sola_hoffman_final_project.aux" 1777405873 7742 71b096601dcf180ba7d9ef6d687a5096 "pdflatex"
+  "sola_hoffman_final_project.aux" 1777409630 9462 dddafe4324c242b2d99578e2c8d56e14 "pdflatex"
   (generated)
   "sola_hoffman_final_project.bbl"
   "sola_hoffman_final_project.blg"
   (rewritten before read)
-["pdflatex"] 1777405871.36459 "c:/Users/solam/Dropbox/school/Colorado/Courses/ASEN 5264/project/docs/latex/final_report/sola_hoffman_final_project.tex" "sola_hoffman_final_project.pdf" "sola_hoffman_final_project" 1777405874.32026 0
-  "c:/Users/solam/Dropbox/school/Colorado/Courses/ASEN 5264/project/docs/latex/final_report/sola_hoffman_final_project.tex" 1777405870 28635 4b1c2189c85a25964165cc2c2486f395 ""
+["pdflatex"] 1777409628.46774 "c:/Users/solam/Dropbox/school/Colorado/Courses/ASEN 5264/project/docs/latex/final_report/sola_hoffman_final_project.tex" "sola_hoffman_final_project.pdf" "sola_hoffman_final_project" 1777409631.58942 0
+  "c:/Users/solam/Dropbox/school/Colorado/Courses/ASEN 5264/project/docs/latex/final_report/sola_hoffman_final_project.tex" 1777409612 31539 072acffcf4800c7088de0910a477cd1d ""
   "c:/texlive/2024/texmf-dist/fonts/enc/dvips/base/8r.enc" 1740560045 4850 80dc9bab7f31fb78a000ccfed0e27cab ""
   "c:/texlive/2024/texmf-dist/fonts/map/fontname/texfonts.map" 1740561592 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "c:/texlive/2024/texmf-dist/fonts/tfm/adobe/courier/pcrr7t.tfm" 1740558920 960 379cc0019370a9e0208a0a3f949f847a ""
@@ -44,6 +44,7 @@
   "c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi8.pfb" 1740555554 35469 dcf3a5f2fc1862f5952e3ee5eb1d98c4 ""
   "c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb" 1740555554 35752 024fb6c41858982481f6968b5fc26508 ""
   "c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr5.pfb" 1740555554 31809 8670ca339bf94e56da1fc21c80635e2a ""
+  "c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr6.pfb" 1740555554 32734 69e00a6b65cedb993666e42eedb3d48f ""
   "c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr7.pfb" 1740555554 32762 7fee39e011c23b3589931effd97b9702 ""
   "c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr8.pfb" 1740555554 32726 39f0f9e62e84beb801509898a605dbd5 ""
   "c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb" 1740555554 32569 5e5ddc8df908dea60932f3c484a54c0d ""
@@ -128,14 +129,17 @@
   "c:/texlive/2024/texmf-var/fonts/map/pdftex/updmap/pdftex.map" 1740599620 5512713 1e2df2d1e914a8052c604db674da6db6 ""
   "c:/texlive/2024/texmf-var/web2c/pdftex/pdflatex.fmt" 1740599803 3352887 5f5026bc16493906a0bb7072d7fbaffe ""
   "c:/texlive/2024/texmf.cnf" 1740599588 713 e69b156964470283e0530f5060668171 ""
-  "fig_mdp_solvers.png" 1777401308 39165 2691d65e9f30937b300b711efcc287cc ""
-  "fig_mismatch.png" 1777401308 38905 c602c2303567ddb6822bd92a25aa4133 ""
-  "fig_qmdp_obs.png" 1777401308 46352 89f84de81c042f6d10c1cfcd6653fbf9 ""
-  "fig_solver_convergence.png" 1777401308 115491 84cf24a1cad06a78d78707ee0b07be4b ""
-  "sola_hoffman_final_project.aux" 1777405873 7742 71b096601dcf180ba7d9ef6d687a5096 "pdflatex"
-  "sola_hoffman_final_project.bbl" 1777405762 3102 97d27f99ac2ef3f97a0f051788ade5a6 "bibtex sola_hoffman_final_project"
-  "sola_hoffman_final_project.out" 1777405873 4095 86b65dbba6b26fad0990c545d46d7529 "pdflatex"
-  "sola_hoffman_final_project.tex" 1777405870 28635 4b1c2189c85a25964165cc2c2486f395 ""
+  "fig_fsp_entropy.png" 1777409544 35601 341e9273efcc1546ad4eaac91ce130cf ""
+  "fig_fsp_results.png" 1777409544 23724 261bf30b4193e9340e4253c099806037 ""
+  "fig_fsp_value.png" 1777409544 31385 a496cc895e7763d638ac96eb57b1093c ""
+  "fig_mdp_solvers.png" 1777409489 39165 2691d65e9f30937b300b711efcc287cc ""
+  "fig_mismatch.png" 1777409489 38905 c602c2303567ddb6822bd92a25aa4133 ""
+  "fig_qmdp_obs.png" 1777409489 46352 89f84de81c042f6d10c1cfcd6653fbf9 ""
+  "fig_solver_convergence.png" 1777409489 115491 84cf24a1cad06a78d78707ee0b07be4b ""
+  "sola_hoffman_final_project.aux" 1777409630 9462 dddafe4324c242b2d99578e2c8d56e14 "pdflatex"
+  "sola_hoffman_final_project.bbl" 1777409628 3102 97d27f99ac2ef3f97a0f051788ade5a6 "bibtex sola_hoffman_final_project"
+  "sola_hoffman_final_project.out" 1777409630 4229 bd52a80d17c8b1304b6eabd7d63c0251 "pdflatex"
+  "sola_hoffman_final_project.tex" 1777409612 31539 072acffcf4800c7088de0910a477cd1d ""
   (generated)
   "sola_hoffman_final_project.aux"
   "sola_hoffman_final_project.log"

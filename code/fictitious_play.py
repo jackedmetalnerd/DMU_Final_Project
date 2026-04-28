@@ -28,6 +28,7 @@ import time
 from action import Action
 from markov_game_env import MarkovGameEnv
 from policies import alternating_training_attack
+from policy import save_mixed_policy
 from state import State
 from value_iteration import ValueIteration
 
@@ -88,9 +89,12 @@ class FictitiousPlay:
 
         Returns
         -------
-        v1_history : list[float]  V¹(s₀) after each iteration
-        sigma1     : (n_states, 3) array  final P1 average policy
-        sigma2     : (n_states, 3) array  final P2 average policy
+        stats  : dict with keys:
+                   v1_history, v2_history          — value at s₀ per iteration
+                   entropy1_history, entropy2_history — avg policy entropy per iteration
+                   sigma1_s0_history, sigma2_s0_history — action probs at s₀ (n_iters, 3)
+        sigma1 : (n_states, 3) array  final P1 average policy
+        sigma2 : (n_states, 3) array  final P2 average policy
         """
         env = self.env
         s0  = env.initial_state
@@ -116,17 +120,22 @@ class FictitiousPlay:
         perm = self._build_inversion_perm(states, state_index)
 
         # ── Count arrays and initial seed ─────────────────────────────────────
-        n1 = np.zeros((n, 3), dtype=np.float64)   # P1 action counts
-        n2 = np.zeros((n, 3), dtype=np.float64)   # P2 action counts
+        n1 = np.zeros((n, 3), dtype=np.float64)
+        n2 = np.zeros((n, 3), dtype=np.float64)
 
-        # Seed n2 with the initial deterministic P2 policy
         for i, s in enumerate(states):
             a2_idx = Action.P2_ACTIONS.index(alternating_training_attack(s))
             n2[i, a2_idx] += 1.0
 
         V1_prev = None
         V2_prev = None
-        v1_history = []
+
+        v1_history        = []
+        v2_history        = []
+        entropy1_history  = []
+        entropy2_history  = []
+        sigma1_s0_history = []
+        sigma2_s0_history = []
 
         # ── Main FSP loop ─────────────────────────────────────────────────────
         for k in range(1, self.n_iters + 1):
@@ -148,7 +157,7 @@ class FictitiousPlay:
 
             # ── P2 best response against σ¹ ───────────────────────────────────
             sigma1     = _normalize_counts(n1)
-            sigma1_inv = sigma1[perm, :]   # remap to inverted state indices
+            sigma1_inv = sigma1[perm, :]
 
             print(f"  P2: updating inverted T with mixed σ¹ ...")
             env_p2.update_P2_policy(sigma1_inv)
@@ -159,14 +168,34 @@ class FictitiousPlay:
             V2_prev = vi2.V
 
             _increment_counts_inverted(n2, pi2_k, states, perm)
+            sigma2 = _normalize_counts(n2)
 
+            # ── Record stats for this iteration ───────────────────────────────
             v1_s0 = V1_prev[s0_idx]
-            v1_history.append(v1_s0)
-            print(f"\n  V¹(s₀) = {v1_s0:.6f}")
+            v2_s0 = V2_prev[perm[s0_idx]]   # P2's value at inverted s₀
 
+            v1_history.append(v1_s0)
+            v2_history.append(v2_s0)
+            entropy1_history.append(_policy_entropy(sigma1))
+            entropy2_history.append(_policy_entropy(sigma2))
+            sigma1_s0_history.append(sigma1[s0_idx].copy())
+            sigma2_s0_history.append(sigma2[s0_idx].copy())
+
+            print(f"\n  V¹(s₀) = {v1_s0:.6f}  |  V²(s₀) = {v2_s0:.6f}"
+                  f"  |  H(σ¹) = {entropy1_history[-1]:.4f}"
+                  f"  |  H(σ²) = {entropy2_history[-1]:.4f}")
+
+        stats = {
+            'v1_history':        np.array(v1_history),
+            'v2_history':        np.array(v2_history),
+            'entropy1_history':  np.array(entropy1_history),
+            'entropy2_history':  np.array(entropy2_history),
+            'sigma1_s0_history': np.array(sigma1_s0_history),
+            'sigma2_s0_history': np.array(sigma2_s0_history),
+        }
         sigma1 = _normalize_counts(n1)
         sigma2 = _normalize_counts(n2)
-        return v1_history, sigma1, sigma2
+        return stats, sigma1, sigma2
 
     # ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -191,6 +220,12 @@ def _default_p1_policy(s: State) -> Action:
     if s.W1 < s.M1:
         return Action.P1_TRAIN_WORKERS
     return Action.P1_TRAIN_MARINES
+
+
+def _policy_entropy(sigma: np.ndarray) -> float:
+    """Mean entropy (nats) across all states for a mixed policy sigma (n, 3)."""
+    eps = 1e-10
+    return float(np.mean(-np.sum(sigma * np.log(sigma + eps), axis=1)))
 
 
 def _normalize_counts(counts: np.ndarray) -> np.ndarray:
@@ -225,55 +260,48 @@ def _increment_counts_inverted(counts: np.ndarray, policy, states: list,
 
 if __name__ == '__main__':
     import matplotlib
-    matplotlib.use('Agg')   # non-interactive backend (saves to file)
+    matplotlib.use('Agg')
     import matplotlib.pyplot as plt
 
     print("Initializing MarkovGameEnv...")
     mg_env = MarkovGameEnv()
 
-    solver = FictitiousPlay(
-        mg_env,
-        n_iters=10,
-        vi_tol=1e-9,
-        max_turns=50,
-    )
+    solver = FictitiousPlay(mg_env, n_iters=100, vi_tol=1e-9, max_turns=1000)
+    stats, sigma1, sigma2 = solver.run()
 
-    v1_history, sigma1, sigma2 = solver.run()
+    # ── Save policies and stats ───────────────────────────────────────────────
+    save_mixed_policy(sigma1, 'fsp_sigma_p1.npy')
+    save_mixed_policy(sigma2, 'fsp_sigma_p2.npy')
+    np.savez('fsp_stats.npz', **stats)
+    print("Stats saved to fsp_stats.npz")
 
-    # ── Convergence plot ──────────────────────────────────────────────────────
-    plt.figure(figsize=(7, 4))
-    plt.plot(range(1, len(v1_history) + 1), v1_history, marker='o')
-    plt.xlabel('FSP Iteration')
-    plt.ylabel('V¹(s₀)')
-    plt.title('Fictitious Self-Play: P1 Value at Initial State')
-    plt.grid(True)
-    plt.tight_layout()
-    plot_path = 'fsp_convergence.png'
-    plt.savefig(plot_path)
-    print(f"\nConvergence plot saved to {plot_path}")
+    # ── Build mixed policy callables ──────────────────────────────────────────
+    states    = mg_env.joint_model._states
+    state_idx = {s: i for i, s in enumerate(states)}
+    s0        = mg_env.initial_state
+    s0_i      = state_idx[s0]
 
-    # ── Policy summary at initial state ──────────────────────────────────────
-    s0 = mg_env.initial_state
-    states     = MarkovGameEnv().joint_model._states   # reuse state list
-    state_idx  = {s: i for i, s in enumerate(states)}
-    s0_i = state_idx[s0]
-
-    print(f"\nFinal mixed policies at s₀ = {s0}:")
-    action_names = ['train_workers', 'train_marines', 'attack']
-    print(f"  σ¹(a|s₀): " + ", ".join(
-        f"{n}={sigma1[s0_i, j]:.3f}" for j, n in enumerate(action_names)))
-    print(f"  σ²(a|s₀): " + ", ".join(
-        f"{n}={sigma2[s0_i, j]:.3f}" for j, n in enumerate(action_names)))
-
-    # ── Simulations with final mixed policies ─────────────────────────────────
-    n_sims = 10
-    print(f"\nSimulating {n_sims} games with final mixed policies...")
     p1_mixed = MixedPolicy(sigma1, state_idx, Action.P1_ACTIONS)
     p2_mixed = MixedPolicy(sigma2, state_idx, Action.P2_ACTIONS)
 
-    results = [mg_env.simulate(p1_policy=p1_mixed, p2_policy=p2_mixed, max_turns=50)
-               for _ in range(n_sims)]
+    # ── Silent trace games (for plots) ───────────────────────────────────────
+    n_traces = 5
+    print(f"\nSimulating {n_traces} trace games...")
+    traces = [mg_env.simulate_trace(p1_mixed, p2_mixed, max_turns=1000)
+              for _ in range(n_traces)]
+    np.savez('fsp_traces.npz',
+             **{f'W1_{i}': t['W1'] for i, t in enumerate(traces)},
+             **{f'M1_{i}': t['M1'] for i, t in enumerate(traces)},
+             **{f'W2_{i}': t['W2'] for i, t in enumerate(traces)},
+             **{f'M2_{i}': t['M2'] for i, t in enumerate(traces)},
+             winners=np.array([t['winner'] for t in traces]))
+    print("Traces saved to fsp_traces.npz")
 
+    # ── Win/loss summary (bulk, silent) ──────────────────────────────────────
+    n_sims = 1000
+    print(f"\nSimulating {n_sims} games for win-rate estimate...")
+    results = [mg_env.simulate_trace(p1_mixed, p2_mixed, max_turns=1000)['winner']
+               for _ in range(n_sims)]
     p1_wins = results.count('P1')
     p2_wins = results.count('P2')
     draws   = results.count('Draw')
@@ -283,3 +311,75 @@ if __name__ == '__main__':
     print(f"  P1 wins: {p1_wins}/{n_sims} ({100*p1_wins/n_sims:.0f}%)")
     print(f"  P2 wins: {p2_wins}/{n_sims} ({100*p2_wins/n_sims:.0f}%)")
     print(f"  Draws:   {draws}/{n_sims} ({100*draws/n_sims:.0f}%)")
+
+    # ── Policy summary at s₀ ─────────────────────────────────────────────────
+    action_names = ['train_workers', 'train_marines', 'attack']
+    print(f"\nFinal mixed policies at s₀ = {s0}:")
+    print(f"  σ¹(a|s₀): " + ", ".join(
+        f"{n}={sigma1[s0_i, j]:.3f}" for j, n in enumerate(action_names)))
+    print(f"  σ²(a|s₀): " + ", ".join(
+        f"{n}={sigma2[s0_i, j]:.3f}" for j, n in enumerate(action_names)))
+
+    # ── 6-panel convergence plot ──────────────────────────────────────────────
+    iters     = range(1, len(stats['v1_history']) + 1)
+    c_p1      = ['#1f77b4', '#ff7f0e', '#2ca02c']
+    c_p2      = ['#d62728', '#9467bd', '#8c564b']
+
+    fig, axes = plt.subplots(2, 3, figsize=(15, 9))
+    fig.suptitle('Fictitious Self-Play Convergence', fontsize=14)
+
+    # (0,0) Value at s₀
+    ax = axes[0, 0]
+    ax.plot(iters, stats['v1_history'], marker='.', label='V¹(s₀) — P1')
+    ax.plot(iters, stats['v2_history'], marker='.', label='V²(s₀) — P2')
+    ax.set_xlabel('FSP Iteration'); ax.set_ylabel('Value')
+    ax.set_title('Value at Initial State'); ax.legend(); ax.grid(True)
+
+    # (0,1) Policy entropy
+    ax = axes[0, 1]
+    ax.plot(iters, stats['entropy1_history'], marker='.', label='H(σ¹) — P1')
+    ax.plot(iters, stats['entropy2_history'], marker='.', label='H(σ²) — P2')
+    ax.set_xlabel('FSP Iteration'); ax.set_ylabel('Avg Entropy (nats)')
+    ax.set_title('Policy Entropy'); ax.legend(); ax.grid(True)
+
+    # (0,2) P1 action probs at s₀
+    ax = axes[0, 2]
+    for j, name in enumerate(action_names):
+        ax.plot(iters, stats['sigma1_s0_history'][:, j],
+                marker='.', color=c_p1[j], label=name)
+    ax.set_xlabel('FSP Iteration'); ax.set_ylabel('Probability')
+    ax.set_title('P1 Action Probs at s₀'); ax.legend(fontsize=8); ax.grid(True)
+
+    # (1,0) P2 action probs at s₀
+    ax = axes[1, 0]
+    for j, name in enumerate(action_names):
+        ax.plot(iters, stats['sigma2_s0_history'][:, j],
+                marker='.', color=c_p2[j], label=name)
+    ax.set_xlabel('FSP Iteration'); ax.set_ylabel('Probability')
+    ax.set_title('P2 Action Probs at s₀'); ax.legend(fontsize=8); ax.grid(True)
+
+    # (1,1) Marine counts over game turns
+    ax = axes[1, 1]
+    for i, t in enumerate(traces):
+        turns = range(len(t['M1']))
+        ax.plot(turns, t['M1'], color=c_p1[0], alpha=0.55,
+                label=f'P1 ({t["winner"]} wins)' if i == 0 else None)
+        ax.plot(turns, t['M2'], color=c_p2[0], alpha=0.55,
+                label='P2' if i == 0 else None)
+    ax.set_xlabel('Turn'); ax.set_ylabel('Marines')
+    ax.set_title('Marine Counts — Sample Games'); ax.legend(fontsize=8); ax.grid(True)
+
+    # (1,2) Worker counts over game turns
+    ax = axes[1, 2]
+    for i, t in enumerate(traces):
+        turns = range(len(t['W1']))
+        ax.plot(turns, t['W1'], color=c_p1[1], alpha=0.55,
+                label='P1' if i == 0 else None)
+        ax.plot(turns, t['W2'], color=c_p2[1], alpha=0.55,
+                label='P2' if i == 0 else None)
+    ax.set_xlabel('Turn'); ax.set_ylabel('Workers')
+    ax.set_title('Worker Counts — Sample Games'); ax.legend(fontsize=8); ax.grid(True)
+
+    plt.tight_layout()
+    plt.savefig('fsp_convergence.png', dpi=150)
+    print(f"\nPlot saved to fsp_convergence.png")

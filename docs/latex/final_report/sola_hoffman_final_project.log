@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2024) (preloaded format=pdflatex 2025.2.26)  28 APR 2026 13:51
+This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2024) (preloaded format=pdflatex 2025.2.26)  28 APR 2026 14:53
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -444,15 +444,15 @@ Package hyperref Info: Link coloring ON on input line 24.
 
 
 
-LaTeX Font Info:    Trying to load font information for U+msa on input line 119.
+LaTeX Font Info:    Trying to load font information for U+msa on input line 120.
 (c:/texlive/2024/texmf-dist/tex/latex/amsfonts/umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 )
-LaTeX Font Info:    Trying to load font information for U+msb on input line 119.
+LaTeX Font Info:    Trying to load font information for U+msb on input line 120.
  (c:/texlive/2024/texmf-dist/tex/latex/amsfonts/umsb.fd
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 )
-LaTeX Font Info:    Trying to load font information for OT1+pcr on input line 144.
+LaTeX Font Info:    Trying to load font information for OT1+pcr on input line 145.
  (c:/texlive/2024/texmf-dist/tex/latex/psnfss/ot1pcr.fd
 File: ot1pcr.fd 2001/06/04 font definitions for OT1/pcr.
 )
@@ -461,38 +461,38 @@ File: ot1pcr.fd 2001/06/04 font definitions for OT1/pcr.
 
 
 ]
-Underfull \hbox (badness 2573) in paragraph at lines 170--176
+Underfull \hbox (badness 2573) in paragraph at lines 171--177
  \OT1/ptm/m/it/10 1) Value It-er-a-tion on the Fully Ob-serv-able MDP: [][][]
  []
 
 
-Underfull \hbox (badness 3826) in paragraph at lines 170--176
+Underfull \hbox (badness 3826) in paragraph at lines 171--177
 \OT1/ptm/m/n/10 The game is for-mal-ized as a fully ob-serv-able MDP
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 170--176
+Underfull \hbox (badness 10000) in paragraph at lines 171--177
 \OT1/ptm/m/n/10 with pre-computed tran-si-tion ma-tri-ces $\OML/cmm/m/it/10 T[]$ \OT1/ptm/m/n/10 for each
  []
 
 
-Underfull \hbox (badness 5331) in paragraph at lines 170--176
+Underfull \hbox (badness 5331) in paragraph at lines 171--177
 \OT1/ptm/m/n/10 Player 1 ac-tion $\OML/cmm/m/it/10 a$\OT1/ptm/m/n/10 . Player 2's de-fault ac-tion pol-icy,
  []
 
 
-Underfull \hbox (badness 2573) in paragraph at lines 170--176
+Underfull \hbox (badness 2573) in paragraph at lines 171--177
 \OT1/pcr/m/n/10 alternating_training_attack\OT1/ptm/m/n/10 , al-ter-nates be-tween
  []
 
 
-Underfull \hbox (badness 1735) in paragraph at lines 170--176
+Underfull \hbox (badness 1735) in paragraph at lines 171--177
 \OT1/ptm/m/n/10 train-ing marines and work-ers un-less both are sat-u-rated
  []
 
-Package hyperref Info: bookmark level for unknown algorithm defaults to 0 on input line 184.
+Package hyperref Info: bookmark level for unknown algorithm defaults to 0 on input line 185.
 
-Overfull \hbox (5.074pt too wide) in paragraph at lines 192--194
+Overfull \hbox (5.074pt too wide) in paragraph at lines 193--195
 [] $\OML/cmm/m/it/10 U[]\OT1/cmr/m/n/10 (\OML/cmm/m/it/10 s\OT1/cmr/m/n/10 ) \OMS/cmsy/m/n/10   []  []$ 
  []
 
@@ -504,19 +504,19 @@ Overfull \hbox (5.074pt too wide) in paragraph at lines 192--194
 pdfTeX warning (ext4): destination with the same identifier (name{table.1}) has been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.247 
+l.248 
       ]
-Underfull \hbox (badness 10000) in paragraph at lines 260--261
+Underfull \hbox (badness 10000) in paragraph at lines 261--262
 [] $\OML/cmm/m/it/10 Q\OT1/cmr/m/n/10 (\OML/cmm/m/it/10 s; a\OT1/cmr/m/n/10 ) \OMS/cmsy/m/n/10   \OML/cmm/m/it/10 Q\OT1/cmr/m/n/10 (\OML/cmm/m/it/10 s; a\OT1/cmr/m/n/10 ) +
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 289--292
+Underfull \hbox (badness 10000) in paragraph at lines 290--293
 [] $\OML/cmm/m/it/10 ^^R \OMS/cmsy/m/n/10   \OML/cmm/m/it/10 ^^R \OMS/cmsy/m/n/10 ^^@ \OML/cmm/m/it/10  \OMS/cmsy/m/n/10 r[][]  [][]  []\OML/cmm/m/it/10 r[] \OT1/cmr/m/n/10 +
  []
 
 
-Underfull \hbox (badness 2689) in paragraph at lines 301--305
+Underfull \hbox (badness 2689) in paragraph at lines 302--306
 \OT1/ptm/m/n/10 per-son-nel with gran-u-lar-ity $\OML/cmm/m/it/10 n$\OT1/ptm/m/n/10 . QMDP ap-prox-i-mates the
  []
 
@@ -531,12 +531,12 @@ Underfull \vbox (badness 10000) has occurred while \output is active []
 <fig_mdp_solvers.png, id=176, 650.43pt x 361.35pt>
 File: fig_mdp_solvers.png Graphic file (type png)
 <use fig_mdp_solvers.png>
-Package pdftex.def Info: fig_mdp_solvers.png  used on input line 438.
+Package pdftex.def Info: fig_mdp_solvers.png  used on input line 439.
 (pdftex.def)             Requested size: 252.0pt x 139.99962pt.
 <fig_solver_convergence.png, id=178, 650.43pt x 361.35pt>
 File: fig_solver_convergence.png Graphic file (type png)
 <use fig_solver_convergence.png>
-Package pdftex.def Info: fig_solver_convergence.png  used on input line 446.
+Package pdftex.def Info: fig_solver_convergence.png  used on input line 447.
 (pdftex.def)             Requested size: 252.0pt x 139.99962pt.
 
 
@@ -546,43 +546,81 @@ Package pdftex.def Info: fig_solver_convergence.png  used on input line 446.
 pdfTeX warning (ext4): destination with the same identifier (name{figure.1}) has been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.482 
+l.483 
       
 pdfTeX warning (ext4): destination with the same identifier (name{figure.2}) has been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.482 
+l.483 
        <./fig_mdp_solvers.png> <./fig_solver_convergence.png>]
 <fig_qmdp_obs.png, id=192, 578.16pt x 361.35pt>
 File: fig_qmdp_obs.png Graphic file (type png)
 <use fig_qmdp_obs.png>
-Package pdftex.def Info: fig_qmdp_obs.png  used on input line 498.
+Package pdftex.def Info: fig_qmdp_obs.png  used on input line 499.
 (pdftex.def)             Requested size: 252.0pt x 157.50026pt.
 
 
 <fig_mismatch.png, id=193, 578.16pt x 361.35pt>
 File: fig_mismatch.png Graphic file (type png)
 <use fig_mismatch.png>
-Package pdftex.def Info: fig_mismatch.png  used on input line 531.
+Package pdftex.def Info: fig_mismatch.png  used on input line 532.
 (pdftex.def)             Requested size: 252.0pt x 157.50026pt.
-
-Underfull \hbox (badness 2653) in paragraph at lines 565--571
-[]\OT1/ptm/m/n/10 Under par-tial ob-serv-abil-ity, QMDP demon-strated that
- []
-
 
 
 [5
 pdfTeX warning (ext4): destination with the same identifier (name{figure.3}) has been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.571 
-      
+l.554 \begin{align}
+                   
 pdfTeX warning (ext4): destination with the same identifier (name{figure.4}) has been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.571 
-       <./fig_qmdp_obs.png> <./fig_mismatch.png>] (./sola_hoffman_final_project.bbl)
+l.554 \begin{align}
+                    <./fig_qmdp_obs.png> <./fig_mismatch.png>]
+<fig_fsp_value.png, id=206, 361.35pt x 252.945pt>
+File: fig_fsp_value.png Graphic file (type png)
+<use fig_fsp_value.png>
+Package pdftex.def Info: fig_fsp_value.png  used on input line 562.
+(pdftex.def)             Requested size: 252.0pt x 176.4003pt.
+<fig_fsp_entropy.png, id=207, 361.35pt x 252.945pt>
+File: fig_fsp_entropy.png Graphic file (type png)
+<use fig_fsp_entropy.png>
+Package pdftex.def Info: fig_fsp_entropy.png  used on input line 571.
+(pdftex.def)             Requested size: 252.0pt x 176.4003pt.
+<fig_fsp_results.png, id=208, 289.08pt x 252.945pt>
+File: fig_fsp_results.png Graphic file (type png)
+<use fig_fsp_results.png>
+Package pdftex.def Info: fig_fsp_results.png  used on input line 579.
+(pdftex.def)             Requested size: 252.0pt x 220.50037pt.
+
+Underfull \hbox (badness 2653) in paragraph at lines 600--606
+[]\OT1/ptm/m/n/10 Under par-tial ob-serv-abil-ity, QMDP demon-strated that
+ []
+
+
+
+
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+
+
+[6
+pdfTeX warning (ext4): destination with the same identifier (name{figure.5}) has been already used, duplicate ignored
+<argument> ...shipout:D \box_use:N \l_shipout_box 
+                                                  \__shipout_drop_firstpage_...
+l.619 
+      
+pdfTeX warning (ext4): destination with the same identifier (name{figure.6}) has been already used, duplicate ignored
+<argument> ...shipout:D \box_use:N \l_shipout_box 
+                                                  \__shipout_drop_firstpage_...
+l.619 
+      
+pdfTeX warning (ext4): destination with the same identifier (name{figure.7}) has been already used, duplicate ignored
+<argument> ...shipout:D \box_use:N \l_shipout_box 
+                                                  \__shipout_drop_firstpage_...
+l.619 
+       <./fig_fsp_value.png> <./fig_fsp_entropy.png> <./fig_fsp_results.png>] (./sola_hoffman_final_project.bbl)
 
 ** Conference Paper **
 Before submitting the final camera ready copy, remember to:
@@ -598,7 +636,7 @@ Before submitting the final camera ready copy, remember to:
 
 
 
-[6
+[7
 
 ] (./sola_hoffman_final_project.aux)
  ***********
@@ -606,21 +644,21 @@ LaTeX2e <2024-11-01> patch level 2
 L3 programming layer <2025-01-18>
  ***********
 Package rerunfilecheck Info: File `sola_hoffman_final_project.out' has not changed.
-(rerunfilecheck)             Checksum: 86B65DBBA6B26FAD0990C545D46D7529;4095.
+(rerunfilecheck)             Checksum: BD52A80D17C8B1304B6EABD7D63C0251;4229.
  ) 
 Here is how much of TeX's memory you used:
- 11917 strings out of 473201
- 186253 string characters out of 5720299
- 606804 words of memory out of 5000000
- 34939 multiletter control sequences out of 15000+600000
+ 11958 strings out of 473201
+ 187139 string characters out of 5720299
+ 607469 words of memory out of 5000000
+ 34975 multiletter control sequences out of 15000+600000
  601604 words of font info for 119 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 75i,13n,79p,530b,451s stack positions out of 10000i,1000n,20000p,200000b,200000s
-<c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi5.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi6.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi7.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi8.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr5.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr7.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr8.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy5.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy6.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb><c:/texlive/2024/texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb><c:/texlive/2024/texmf-dist/fonts/type1/urw/times/utmb8a.pfb><c:/texlive/2024/texmf-dist/fonts/type1/urw/times/utmr8a.pfb><c:/texlive/2024/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
-Output written on sola_hoffman_final_project.pdf (6 pages, 474643 bytes).
+ 75i,13n,79p,1015b,463s stack positions out of 10000i,1000n,20000p,200000b,200000s
+<c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi5.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi6.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi7.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi8.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr5.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr6.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr7.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr8.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy5.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy6.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb><c:/texlive/2024/texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb><c:/texlive/2024/texmf-dist/fonts/type1/urw/times/utmb8a.pfb><c:/texlive/2024/texmf-dist/fonts/type1/urw/times/utmr8a.pfb><c:/texlive/2024/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
+Output written on sola_hoffman_final_project.pdf (7 pages, 564374 bytes).
 PDF statistics:
- 306 PDF objects out of 1000 (max. 8388607)
- 247 compressed objects within 3 object streams
- 59 named destinations out of 1000 (max. 500000)
- 213 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 331 PDF objects out of 1000 (max. 8388607)
+ 263 compressed objects within 3 object streams
+ 64 named destinations out of 1000 (max. 500000)
+ 228 words of extra memory for PDF output out of 10000 (max. 10000000)
 

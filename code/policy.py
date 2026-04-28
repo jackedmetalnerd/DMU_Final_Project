@@ -120,3 +120,57 @@ class BeliefPolicy(Policy):
 
     def __call__(self, b: np.ndarray) -> Action:
         return self._solver.get_action(b)
+
+
+# ── Policy I/O ────────────────────────────────────────────────────────────────
+
+def save_policy(policy, path: str, states: list, actions: list) -> None:
+    """Save a deterministic policy to a .npy file as an array of action indices.
+
+    Parameters
+    ----------
+    policy  : callable Policy (DictPolicy, FunctionPolicy, etc.)
+    path    : file path, e.g. 'vi_policy_p1.npy'
+    states  : ordered list of States (from State.build_space())
+    actions : ordered list of Actions that index the array columns
+    """
+    indices = np.array([actions.index(policy(s)) for s in states], dtype=np.int16)
+    np.save(path, indices)
+    print(f"Policy saved to {path}  ({len(states)} states)")
+
+
+def load_policy(path: str, states: list, actions: list) -> FunctionPolicy:
+    """Load a deterministic policy saved by save_policy(). Returns a FunctionPolicy.
+
+    Parameters
+    ----------
+    path    : file path, e.g. 'vi_policy_p1.npy'
+    states  : ordered list of States (must match the list used when saving)
+    actions : ordered list of Actions (must match the list used when saving)
+    """
+    indices    = np.load(path)
+    state_index = {s: i for i, s in enumerate(states)}
+    return FunctionPolicy(lambda s, idx=indices, si=state_index, a=actions: a[idx[si[s]]])
+
+
+def save_mixed_policy(sigma: np.ndarray, path: str) -> None:
+    """Save an FSP mixed policy sigma array (n_states, 3) to a .npy file."""
+    np.save(path, sigma)
+    print(f"Mixed policy saved to {path}  shape={sigma.shape}")
+
+
+def load_mixed_policy(path: str, states: list, actions: list):
+    """Load a mixed policy saved by save_mixed_policy(). Returns a MixedPolicy-like callable.
+
+    The returned object samples an action according to the stored probabilities.
+    """
+    sigma      = np.load(path)
+    state_index = {s: i for i, s in enumerate(states)}
+
+    class _LoadedMixedPolicy(Policy):
+        def __call__(self, s: State) -> Action:
+            i     = state_index[s]
+            probs = sigma[i]
+            return actions[np.random.choice(len(actions), p=probs)]
+
+    return _LoadedMixedPolicy()
